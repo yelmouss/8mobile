@@ -1,7 +1,11 @@
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-const NEXT_BASE_URL = (Constants?.expoConfig?.extra?.NEXT_BASE_URL) || 'http://localhost:3000';
+// Resolve Next base URL from Expo config (supports string or {development,production})
+const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
+const NEXT_BASE_URL = (typeof NEXT_EXTRA === 'string'
+  ? NEXT_EXTRA
+  : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
 
 async function getToken() {
   try {
@@ -13,11 +17,12 @@ async function getToken() {
 
 export async function apiFetch(path, options = {}) {
   const token = await getToken();
+  const isFormData = (typeof FormData !== 'undefined') && options?.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers || {}),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token && !options.noAuth) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${NEXT_BASE_URL}${path}`, {
     ...options,
@@ -72,6 +77,41 @@ export async function getMyCards() {
   }
 }
 
+export async function getBackgrounds() {
+  // No auth to avoid CORS preflight issues on some devices/network stacks
+  const res = await fetch(`${NEXT_BASE_URL}/api/backgrounds`, { method: 'GET' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.error || 'Failed to load backgrounds');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function getMyUploads() {
+  return apiFetch('/api/upload');
+}
+
+export async function uploadImageFile(file) {
+  // file: { uri, name, type }
+  const token = await getToken();
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${NEXT_BASE_URL}/api/upload?type=image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data?.error || 'Upload failed');
+    err.status = res.status;
+    throw err;
+  }
+  return data; // { fileUrl, dockerFileUrl }
+}
+
 export async function createCard(payload) {
   return apiFetch('/api/cartes', {
     method: 'POST',
@@ -90,4 +130,34 @@ export async function deleteCard(cardId) {
   return apiFetch(`/api/cartes/${cardId}`, {
     method: 'DELETE',
   });
+}
+
+export async function getMyStats() {
+  const stats = await apiFetch('/api/stats');
+  try {
+    // If server reports 0 cards, double-check via list endpoint and synthesize counts
+    const needCards = !stats?.cards || (stats.cards.total || 0) === 0;
+    const needViews = !stats?.views || (stats.views.total || 0) === 0;
+    const needShares = !stats?.shares || (stats.shares.total || 0) === 0;
+    const needScans = !stats?.scans || (stats.scans.total || 0) === 0;
+    if (needCards || needViews || needShares || needScans) {
+      const list = await getMyCards();
+      const cards = Array.isArray(list?.cards) ? list.cards : [];
+      if (cards.length > 0) {
+        const active = cards.filter(c => !!c.isActive).length;
+        const inactive = Math.max(0, cards.length - active);
+        const views = cards.reduce((s, c) => s + (c?.stats?.views || 0), 0);
+        const shares = cards.reduce((s, c) => s + (c?.stats?.shares || 0), 0);
+        const scans = cards.reduce((s, c) => s + (c?.stats?.scans || 0), 0);
+        return {
+          ...stats,
+          cards: needCards ? { total: cards.length, active, inactive } : stats.cards,
+          views: needViews ? { total: views } : stats.views,
+          shares: needShares ? { total: shares } : stats.shares,
+          scans: needScans ? { total: scans } : stats.scans,
+        };
+      }
+    }
+  } catch {}
+  return stats;
 }

@@ -1,9 +1,13 @@
-import React, { useState, memo, useCallback } from 'react';
+import React, { useState, memo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
-import { SvgUri } from 'react-native-svg';
+import { SvgUri, SvgXml } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import Constants from 'expo-constants';
-
-const BASE = (Constants?.expoConfig?.extra?.NEXT_BASE_URL) || 'http://localhost:3000';
+// Resolve base URL from Expo extra; supports string or {development,production}
+const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
+const BASE = (typeof NEXT_EXTRA === 'string'
+  ? NEXT_EXTRA
+  : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
 
 function toAbs(u) {
   if (!u) return null;
@@ -12,23 +16,77 @@ function toAbs(u) {
   return `${BASE}${path}`;
 }
 
+// Simple in-memory cache for fetched SVG xml
+const svgCache = new Map();
+export async function prefetchSvgUri(u) {
+  try {
+    const uri = toAbs(u);
+    if (!uri || svgCache.has(uri)) return;
+    const res = await fetch(uri);
+    if (!res.ok) return;
+    const xml = await res.text();
+    if (xml) svgCache.set(uri, xml);
+  } catch {}
+}
+
 function Background({ background }) {
+  const [xml, setXml] = useState(null);
+  const type = background?.type;
+  const value = background?.value;
+  const uri = type === 'image' && value ? toAbs(value) : null;
+  const isSvg = !!(uri && (uri.endsWith('.svg') || uri.startsWith('data:image/svg')));
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isSvg && uri) {
+      const cached = svgCache.get(uri) || null;
+      if (cached) {
+        setXml(cached);
+      } else {
+        (async () => {
+          try {
+            const res = await fetch(uri);
+            const txt = await res.text();
+            if (!cancelled && txt) {
+              svgCache.set(uri, txt);
+              setXml(txt);
+            }
+          } catch {}
+        })();
+      }
+    } else {
+      setXml(null);
+    }
+    return () => { cancelled = true; };
+  }, [uri, isSvg]);
+
   if (!background) return <View style={[styles.cardFace, { backgroundColor: '#eee' }]} />;
-  const { type, value } = background;
   if (type === 'image' && value) {
-    const uri = toAbs(value);
     if (!uri) return <View style={[styles.cardFace, { backgroundColor: '#eee' }]} />;
-    const isSvg = uri.endsWith('.svg') || uri.startsWith('data:image/svg');
-    return isSvg ? (
-      <SvgUri uri={uri} width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
-    ) : (
-      <Image source={{ uri }} style={styles.cardFace} resizeMode="cover" />
-    );
+    if (isSvg) {
+      return xml ? (
+        <SvgXml xml={xml} width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
+      ) : (
+        <View style={[styles.cardFace, { backgroundColor: '#eaeaea' }]} />
+      );
+    }
+    return <Image source={{ uri }} style={styles.cardFace} resizeMode="cover" />;
   }
   if (type === 'color' && value) {
     return <View style={[styles.cardFace, { backgroundColor: value }]} />;
   }
-  // TODO: gradient support
+  if (type === 'gradient' && value) {
+    // Parse simple CSS-like linear-gradient(…)
+    const match = String(value).match(/linear-gradient\(([^,]+),\s*([^%]+)%?,\s*([^%]+)%?\)/i);
+    // Fallback to default gradient if parse fails
+    const colors = value.includes('#') ? value.match(/#[0-9a-fA-F]{3,8}/g) : null;
+    if (colors && colors.length >= 2) {
+      return (
+        <LinearGradient colors={colors.slice(0, 2)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cardFace} />
+      );
+    }
+    return <View style={[styles.cardFace, { backgroundColor: '#e9e9e9' }]} />;
+  }
   return <View style={[styles.cardFace, { backgroundColor: '#f2f2f2' }]} />;
 }
 
@@ -41,7 +99,7 @@ function QRBadge({ uri }) {
   );
 }
 
-function MobileCard({ card, onPress }) {
+function MobileCard({ card, onPress, side }) {
   const [flipped, setFlipped] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
 
@@ -231,15 +289,16 @@ function MobileCard({ card, onPress }) {
     </View>
   );
 
+  const showBack = side ? (side === 'verso') : flipped;
   return (
     <View style={styles.wrapper}>
       <Pressable
         style={styles.press}
         android_ripple={{ color: '#ddd' }}
-        onPress={() => setFlipped((f) => !f)}
+        onPress={() => { if (!side) setFlipped((f) => !f); }}
         onLongPress={onPress}
       >
-        {flipped ? Back : Front}
+        {showBack ? Back : Front}
       </Pressable>
       <View style={styles.metaRow}>
         <Text style={styles.title} numberOfLines={1}>{card?.name || 'Carte'}</Text>
