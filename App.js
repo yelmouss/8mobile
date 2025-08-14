@@ -1,20 +1,71 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
+import { useCallback, useEffect } from 'react';
+import { StyleSheet, Alert, View, Text, Button } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import MainTabs from './src/navigation/MainTabs';
+import HomeScreen from './src/screens/HomeScreen';
 
-export default function App() {
+const NEXT_BASE_URL = (Constants?.expoConfig?.extra?.NEXT_BASE_URL) || 'http://localhost:3000';
+
+function Root() {
+  const { setToken, token } = useAuth();
+
+  const handleDeepLink = useCallback((event) => {
+    try {
+      const url = event.url;
+      const { queryParams } = Linking.parse(url);
+      if (queryParams?.token) {
+        setToken(queryParams.token);
+        Alert.alert('Connecté', 'Jeton reçu.');
+      } else if (queryParams?.error) {
+        Alert.alert('Erreur OAuth', String(queryParams.error));
+      }
+    } catch (e) {
+      console.warn('Deep link parse error', e);
+    }
+  }, [setToken]);
+
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    Linking.getInitialURL().then((initialUrl) => {
+      if (initialUrl) handleDeepLink({ url: initialUrl });
+    });
+    return () => sub.remove();
+  }, [handleDeepLink]);
+
+  const startOAuth = useCallback(async () => {
+    const expoReturnUrl = Linking.createURL('oauth');
+    const signinUrl = `${NEXT_BASE_URL}/mobile/signin?returnUrl=${encodeURIComponent(expoReturnUrl)}`;
+    Linking.openURL(signinUrl);
+  }, []);
+
+  if (!token) {
+    return (
+      <>
+        <HomeScreen onStartOAuth={startOAuth} />
+        <StatusBar style="auto" />
+      </>
+    );
+  }
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
+    <>
+      <MainTabs />
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App() {
+  return (
+    <AuthProvider>
+      <SafeAreaProvider>
+        <Root />
+      </SafeAreaProvider>
+    </AuthProvider>
+  );
+}
+
+const styles = StyleSheet.create({});

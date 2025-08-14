@@ -1,3 +1,8 @@
+import 'react-native-gesture-handler';
+import 'react-native-reanimated';
+import { enableScreens } from 'react-native-screens';
+// Temporarily disable native screens to avoid RNSScreenContainer crash
+enableScreens(false);
 import { registerRootComponent } from 'expo';
 
 import App from './App';
