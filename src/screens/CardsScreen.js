@@ -256,7 +256,7 @@ export default function CardsScreen() {
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Images],
       quality: 0.9,
     });
     if (res?.assets && res.assets[0]) {
@@ -298,7 +298,7 @@ export default function CardsScreen() {
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [ImagePicker.MediaType.Images],
       quality: 0.9,
     });
     if (res?.assets && res.assets[0]) {
@@ -440,7 +440,7 @@ export default function CardsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fafafa" },
+  safe: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",

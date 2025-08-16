@@ -1,16 +1,27 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors, spacing } from "../theme/theme";
 export default function TeamScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Collaborateurs</Text>
-      {/* TODO: teammates view */}
-    </View>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Collaborateurs</Text>
+        </View>
+        {/* TODO: contacts/rolodex list */}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 12, backgroundColor: '#fafafa' },
-  title: { fontSize: 18, fontWeight: '600' },
+  safe: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, padding: 12 },
+  title: { fontSize: 20, fontWeight: "700", color: colors.text },
+  header: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
 });

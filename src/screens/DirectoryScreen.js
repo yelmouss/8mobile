@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, RefreshControl, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { colors, spacing } from '../theme/theme';
 import { apiFetch, getMyCards } from '../api/client';
 import MobileCard from '../components/MobileCard';
 import { useAuth } from '../context/AuthContext';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from "react-native-safe-area-context";
+import FilterBar from '../components/common/FilterBar';
 
 const USER_TYPES = [
   { value: '', label: 'Tous' },
@@ -200,23 +201,14 @@ export default function DirectoryScreen({ navigation }) {
       </View>
 
       <View style={styles.filters}>
-        <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" color={colors.mutedText} size={20} />
-          <TextInput
-            placeholder="Rechercher par nom, propriétaire..."
-            placeholderTextColor="#999"
-            value={search}
-            onChangeText={setSearch}
-            style={styles.searchInput}
-          />
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
-          {USER_TYPES.map((t) => (
-            <Pressable key={t.value} onPress={() => setFilterType((cur) => cur === t.value ? '' : t.value)} style={[styles.typeChip, filterType === t.value && styles.typeChipActive]}>
-              <Text style={[styles.typeChipText, filterType === t.value && styles.typeChipTextActive]}>{t.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <FilterBar
+          search={search}
+          onSearchChange={setSearch}
+          types={USER_TYPES}
+          value={filterType}
+          onChange={(v) => setFilterType((cur) => (cur === v ? '' : v))}
+          placeholder="Rechercher par nom, propriétaire..."
+        />
         <View style={styles.countRow}>
           <Text style={styles.countText}>{filtered.length} carte{filtered.length > 1 ? 's' : ''}</Text>
           {filterType ? (

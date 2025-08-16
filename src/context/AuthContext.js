@@ -9,6 +9,7 @@ const AuthContext = createContext({
   setToken: () => {},
   logout: () => {},
   refreshUser: async () => {},
+  deleteAccount: async () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -70,6 +71,27 @@ export function AuthProvider({ children }) {
       setUser(null);
     },
     refreshUser,
+    deleteAccount: async () => {
+      if (!token) throw Object.assign(new Error('Non connecté'), { status: 401 });
+      const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ''}/api/user/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'ngrok-skip-browser-warning': '69420',
+        },
+      });
+      if (!res.ok) {
+        const msg = (await res.json().catch(() => ({})))?.message || 'Échec de la suppression du compte';
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      }
+      // logout after delete
+      await setToken(null);
+      setUser(null);
+      return true;
+    },
   }), [user, token, isLoading, setToken, refreshUser]);
 
   return (
