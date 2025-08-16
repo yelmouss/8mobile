@@ -5,6 +5,7 @@ import { apiFetch, getMyCards } from '../api/client';
 import MobileCard from '../components/MobileCard';
 import { useAuth } from '../context/AuthContext';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const USER_TYPES = [
   { value: '', label: 'Tous' },
@@ -192,6 +193,7 @@ export default function DirectoryScreen({ navigation }) {
   }, []);
 
   return (
+  <SafeAreaView style={styles.safe}>
     <View style={styles.container}>
       <View style={styles.header}> 
         <Text style={styles.title}>Annuaire</Text>
@@ -272,11 +274,14 @@ export default function DirectoryScreen({ navigation }) {
         </View>
       ) : null}
     </View>
+    </SafeAreaView>
+
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  safe : { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   header: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
   title: { fontSize: 20, fontWeight: '700', color: colors.text },
   filters: { paddingHorizontal: spacing.md },

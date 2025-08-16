@@ -1,5 +1,5 @@
-import 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import 'react-native-gesture-handler';
 import { enableScreens } from 'react-native-screens';
 // Temporarily disable native screens to avoid RNSScreenContainer crash
 enableScreens(false);

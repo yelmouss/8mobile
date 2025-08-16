@@ -1,18 +1,27 @@
-import React, { useState, memo, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
-import { SvgUri, SvgXml } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
+import React, { useState, memo, useCallback, useEffect } from "react";
+import { View, Text, StyleSheet, Image, Pressable } from "react-native";
+import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SvgUri, SvgXml } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+import Constants from "expo-constants";
+import { colors } from "../theme/theme";
 // Resolve base URL from Expo extra; supports string or {development,production}
 const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
-const BASE = (typeof NEXT_EXTRA === 'string'
-  ? NEXT_EXTRA
-  : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
+const BASE =
+  (typeof NEXT_EXTRA === "string"
+    ? NEXT_EXTRA
+    : NEXT_EXTRA?.production || NEXT_EXTRA?.development) ||
+  "http://localhost:3000";
 
 function toAbs(u) {
   if (!u) return null;
-  if (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('data:')) return u;
-  const path = u.startsWith('/') ? u : `/${u}`;
+  if (
+    u.startsWith("http://") ||
+    u.startsWith("https://") ||
+    u.startsWith("data:")
+  )
+    return u;
+  const path = u.startsWith("/") ? u : `/${u}`;
   return `${BASE}${path}`;
 }
 
@@ -33,8 +42,11 @@ function Background({ background }) {
   const [xml, setXml] = useState(null);
   const type = background?.type;
   const value = background?.value;
-  const uri = type === 'image' && value ? toAbs(value) : null;
-  const isSvg = !!(uri && (uri.endsWith('.svg') || uri.startsWith('data:image/svg')));
+  const uri = type === "image" && value ? toAbs(value) : null;
+  const isSvg = !!(
+    uri &&
+    (uri.endsWith(".svg") || uri.startsWith("data:image/svg"))
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -57,37 +69,57 @@ function Background({ background }) {
     } else {
       setXml(null);
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [uri, isSvg]);
 
-  if (!background) return <View style={[styles.cardFace, { backgroundColor: '#eee' }]} />;
-  if (type === 'image' && value) {
-    if (!uri) return <View style={[styles.cardFace, { backgroundColor: '#eee' }]} />;
+  if (!background)
+    return <View style={[styles.cardFace, { backgroundColor: "#eee" }]} />;
+  if (type === "image" && value) {
+    if (!uri)
+      return <View style={[styles.cardFace, { backgroundColor: "#eee" }]} />;
     if (isSvg) {
       return xml ? (
-        <SvgXml xml={xml} width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
+        <SvgXml
+          xml={xml}
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid slice"
+        />
       ) : (
-        <View style={[styles.cardFace, { backgroundColor: '#eaeaea' }]} />
+        <View style={[styles.cardFace, { backgroundColor: "#eaeaea" }]} />
       );
     }
-    return <Image source={{ uri }} style={styles.cardFace} resizeMode="cover" />;
+    return (
+      <Image source={{ uri }} style={styles.cardFace} resizeMode="cover" />
+    );
   }
-  if (type === 'color' && value) {
+  if (type === "color" && value) {
     return <View style={[styles.cardFace, { backgroundColor: value }]} />;
   }
-  if (type === 'gradient' && value) {
-  // Parse simple CSS-like linear-gradient(...)
-    const match = String(value).match(/linear-gradient\(([^,]+),\s*([^%]+)%?,\s*([^%]+)%?\)/i);
+  if (type === "gradient" && value) {
+    // Parse simple CSS-like linear-gradient(...)
+    const match = String(value).match(
+      /linear-gradient\(([^,]+),\s*([^%]+)%?,\s*([^%]+)%?\)/i
+    );
     // Fallback to default gradient if parse fails
-    const colors = value.includes('#') ? value.match(/#[0-9a-fA-F]{3,8}/g) : null;
+    const colors = value.includes("#")
+      ? value.match(/#[0-9a-fA-F]{3,8}/g)
+      : null;
     if (colors && colors.length >= 2) {
       return (
-        <LinearGradient colors={colors.slice(0, 2)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cardFace} />
+        <LinearGradient
+          colors={colors.slice(0, 2)}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.cardFace}
+        />
       );
     }
-    return <View style={[styles.cardFace, { backgroundColor: '#e9e9e9' }]} />;
+    return <View style={[styles.cardFace, { backgroundColor: "#e9e9e9" }]} />;
   }
-  return <View style={[styles.cardFace, { backgroundColor: '#f2f2f2' }]} />;
+  return <View style={[styles.cardFace, { backgroundColor: "#f2f2f2" }]} />;
 }
 
 function QRBadge({ uri }) {
@@ -102,6 +134,7 @@ function QRBadge({ uri }) {
 function MobileCard({ card, onPress, side }) {
   const [flipped, setFlipped] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const isFlipped = useSharedValue(0);
 
   const onLayout = useCallback((e) => {
     const { width, height } = e.nativeEvent.layout;
@@ -115,23 +148,45 @@ function MobileCard({ card, onPress, side }) {
   const scaleW = size.w ? size.w / baseW : 1;
   const scaleH = size.h ? size.h / baseH : 1;
   const toNum = (v, fallback) => {
-    if (typeof v === 'number' && isFinite(v)) return v;
+    if (typeof v === "number" && isFinite(v)) return v;
     const n = parseFloat(v);
     return isFinite(n) ? n : fallback;
   };
   const mapFontFamily = (f) => {
     if (!f) return undefined;
     const s = String(f).toLowerCase();
-    if (s.includes('mono')) return 'monospace';
-    if (s.includes('serif') && !s.includes('sans')) return 'serif';
-    return 'sans-serif';
+    if (s.includes("mono")) return "monospace";
+    if (s.includes("serif") && !s.includes("sans")) return "serif";
+    return "sans-serif";
+  };
+  const sanitizeFontWeight = (w) => {
+    if (!w) return 'normal';
+    const s = String(w).toLowerCase();
+    const allowed = new Set(['normal','bold','100','200','300','400','500','600','700','800','900']);
+    return allowed.has(s) ? s : 'normal';
+  };
+  const sanitizeFontStyle = (v) => {
+    if (!v) return 'normal';
+    const s = String(v).toLowerCase();
+    return s === 'italic' ? 'italic' : 'normal';
+  };
+  const sanitizeTextAlign = (v) => {
+    const s = String(v || 'left').toLowerCase();
+    return ['left','right','center','justify'].includes(s) ? s : 'left';
+  };
+  const sanitizeTextDecoration = (v) => {
+    const s = String(v || 'none').toLowerCase();
+    return ['none','underline','line-through','underline line-through'].includes(s) ? s : 'none';
   };
   const toResizeMode = (fit) => {
-    switch ((fit || 'contain').toLowerCase()) {
-      case 'cover': return 'cover';
-      case 'fill': return 'stretch';
-      case 'contain':
-      default: return 'contain';
+    switch ((fit || "contain").toLowerCase()) {
+      case "cover":
+        return "cover";
+      case "fill":
+        return "stretch";
+      case "contain":
+      default:
+        return "contain";
     }
   };
   const computeTransforms = (width, height, rotationDeg) => {
@@ -154,125 +209,180 @@ function MobileCard({ card, onPress, side }) {
     if (!boxShadow) return {};
     return {
       elevation: 4,
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOpacity: 0.25,
       shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 }
+      shadowOffset: { width: 0, height: 2 },
     };
   };
 
   const renderElements = (elements = []) => {
     if (!Array.isArray(elements) || !size.w || !size.h) return null;
-    return elements.filter(el => el?.enabled !== false).map((el, idx) => {
-      const xPct = toNum(el?.position?.x, 0);
-      const yPct = toNum(el?.position?.y, 0);
-      const wPct = toNum(el?.style?.width, 0);
-      const hPct = toNum(el?.style?.height, 0);
-      const left = isFinite(xPct) ? (xPct / 100) * size.w : 0;
-      const top = isFinite(yPct) ? (yPct / 100) * size.h : 0;
-      const width = isFinite(wPct) && wPct > 0 ? (wPct / 100) * size.w : undefined;
-      const height = isFinite(hPct) && hPct > 0 ? (hPct / 100) * size.h : undefined;
-      const rotation = toNum(el?.style?.rotation, 0);
-      const zIndex = toNum(el?.position?.zIndex, 1);
+    return elements
+      .filter((el) => el?.enabled !== false)
+      .map((el, idx) => {
+        const xPct = toNum(el?.position?.x, 0);
+        const yPct = toNum(el?.position?.y, 0);
+        const wPct = toNum(el?.style?.width, 0);
+        const hPct = toNum(el?.style?.height, 0);
+        const left = isFinite(xPct) ? (xPct / 100) * size.w : 0;
+        const top = isFinite(yPct) ? (yPct / 100) * size.h : 0;
+        const width =
+          isFinite(wPct) && wPct > 0 ? (wPct / 100) * size.w : undefined;
+        const height =
+          isFinite(hPct) && hPct > 0 ? (hPct / 100) * size.h : undefined;
+        const rotation = toNum(el?.style?.rotation, 0);
+        const zIndex = toNum(el?.position?.zIndex, 1);
 
-      const containerStyle = {
-        position: 'absolute',
-        left, top, width, height,
-        transform: computeTransforms(width, height, rotation),
-        zIndex,
-        backgroundColor: el?.style?.backgroundColor || 'transparent',
-  padding: toNum(el?.style?.padding, 0) * scaleW,
-  borderWidth: toNum(el?.style?.borderWidth, 0) * scaleW,
-        borderColor: el?.style?.borderColor || 'transparent',
-  opacity: el?.style?.opacity === undefined ? 1 : toNum(el.style.opacity, 1),
-        overflow: 'hidden',
-        borderRadius: 0,
-        ...shadowApprox(el?.style?.boxShadow)
-      };
+        const containerStyle = {
+          position: "absolute",
+          left,
+          top,
+          width,
+          height,
+          transform: computeTransforms(width, height, rotation),
+          zIndex,
+          backgroundColor: el?.style?.backgroundColor || "transparent",
+          padding: toNum(el?.style?.padding, 0) * scaleW,
+          borderWidth: toNum(el?.style?.borderWidth, 0) * scaleW,
+          borderColor: el?.style?.borderColor || "transparent",
+          opacity:
+            el?.style?.opacity === undefined ? 1 : toNum(el.style.opacity, 1),
+          overflow: "hidden",
+          borderRadius: 0,
+          ...shadowApprox(el?.style?.boxShadow),
+        };
 
-      // Border radius handling
-      if (el?.type === 'text') {
-        // text: treat borderRadius as px like web
-  const br = toNum(el?.style?.borderRadius, 0);
-        containerStyle.borderRadius = br ? br * scaleW : 0;
-      } else if (el?.type === 'image' || el?.type === 'socialIcon') {
-  const br = toNum(el?.style?.borderRadius, 0);
-        const minSide = Math.min(width || 0, height || 0) || 0;
-        if (el?.style?.shape === 'circle') {
-          containerStyle.borderRadius = minSide / 2;
-        } else if (!Number.isNaN(br) && minSide) {
-          // interpret as percent like web image style
-          containerStyle.borderRadius = (br / 100) * minSide;
+        // Border radius handling
+        if (el?.type === "text") {
+          // text: treat borderRadius as px like web
+          const br = toNum(el?.style?.borderRadius, 0);
+          containerStyle.borderRadius = br ? br * scaleW : 0;
+        } else if (el?.type === "image" || el?.type === "socialIcon") {
+          const br = toNum(el?.style?.borderRadius, 0);
+          const minSide = Math.min(width || 0, height || 0) || 0;
+          if (el?.style?.shape === "circle") {
+            containerStyle.borderRadius = minSide / 2;
+          } else if (!Number.isNaN(br) && minSide) {
+            // interpret as percent like web image style
+            containerStyle.borderRadius = (br / 100) * minSide;
+          }
         }
-      }
 
-      if (el?.type === 'text') {
-  const color = el?.style?.color || '#000';
-        const fontWeight = el?.style?.fontWeight || 'normal';
-        const fontStyle = el?.style?.fontStyle || 'normal';
-        const textDecorationLine = el?.style?.textDecoration || 'none';
-        const textAlign = el?.style?.textAlign || 'left';
-  const providedFontSize = el?.style?.fontSize;
-  const fontSize = providedFontSize != null ? toNum(providedFontSize, 16) : Math.max(8, 16 * scaleW);
-  const letterSpacing = el?.style?.letterSpacing != null ? toNum(el.style.letterSpacing, undefined) : undefined;
-  const lineHeight = el?.style?.lineHeight != null ? toNum(el.style.lineHeight, undefined) : undefined;
-  const fontFamily = mapFontFamily(el?.style?.fontFamily);
+        if (el?.type === "text") {
+          const color = el?.style?.color || "#000";
+          const fontWeight = sanitizeFontWeight(el?.style?.fontWeight);
+          const fontStyle = sanitizeFontStyle(el?.style?.fontStyle);
+          const textDecorationLine = sanitizeTextDecoration(el?.style?.textDecoration);
+          const textAlign = sanitizeTextAlign(el?.style?.textAlign);
+          const providedFontSize = el?.style?.fontSize;
+          const fontSize =
+            providedFontSize != null
+              ? toNum(providedFontSize, 16)
+              : Math.max(8, 16 * scaleW);
+          const letterSpacing =
+            el?.style?.letterSpacing != null
+              ? toNum(el.style.letterSpacing, undefined)
+              : undefined;
+          const lineHeight =
+            el?.style?.lineHeight != null
+              ? toNum(el.style.lineHeight, undefined)
+              : undefined;
+          const fontFamily = mapFontFamily(el?.style?.fontFamily);
 
-        return (
-          <View key={idx} style={[containerStyle, { justifyContent: 'center', alignItems: textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center' }]}>
-            <Text
-              // Let text wrap within the container
-              style={{
-                color,
-                fontWeight,
-                fontStyle,
-                textDecorationLine,
-                textAlign,
-                fontSize,
-    fontFamily,
-                width: '100%',
-                includeFontPadding: false,
-                letterSpacing,
-                lineHeight,
-              }}
-            >
-              {String(el?.content ?? '')}
-            </Text>
-          </View>
-        );
-      }
-
-      if ((el?.type === 'image' || el?.type === 'socialIcon') && el?.content) {
-        const uri = toAbs(String(el.content));
-        const isSvg = uri && (uri.endsWith('.svg') || uri.startsWith('data:image/svg'));
-        const resizeMode = toResizeMode(el?.style?.objectFit || 'contain');
-        if (isSvg) {
-          // Wrap to allow borderRadius clipping
           return (
-            <View key={idx} style={containerStyle}>
-              <SvgUri uri={uri} width={width || size.w} height={height || size.h} />
+            <View
+              key={idx}
+              style={[
+                containerStyle,
+                {
+                  justifyContent: "center",
+                  alignItems:
+                    textAlign === "left"
+                      ? "flex-start"
+                      : textAlign === "right"
+                      ? "flex-end"
+                      : "center",
+                },
+              ]}
+            >
+              <Text
+                // Let text wrap within the container
+                style={{
+                  color,
+                  fontWeight,
+                  fontStyle,
+                  textDecorationLine,
+                  textAlign,
+                  fontSize,
+                  fontFamily,
+                  width: "100%",
+                  includeFontPadding: false,
+                  letterSpacing,
+                  lineHeight,
+                }}
+              >
+                {String(el?.content ?? "")}
+              </Text>
             </View>
           );
         }
-        return (
-          <View key={idx} style={containerStyle}>
-            <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode={resizeMode} />
-          </View>
-        );
-      }
 
-      if (el?.type === 'divider') {
-        const color = el?.style?.color || '#000';
-  const thickness = toNum(el?.style?.borderWidth, 2) * scaleW;
-        return (
-          <View key={idx} style={[containerStyle, { padding: 0, backgroundColor: 'transparent' }]}>
-            <View style={{ backgroundColor: color, height: thickness, width: '100%' }} />
-          </View>
-        );
-      }
+        if (
+          (el?.type === "image" || el?.type === "socialIcon") &&
+          el?.content
+        ) {
+          const uri = toAbs(String(el.content));
+          const isSvg =
+            uri && (uri.endsWith(".svg") || uri.startsWith("data:image/svg"));
+          const resizeMode = toResizeMode(el?.style?.objectFit || "contain");
+          if (isSvg) {
+            // Wrap to allow borderRadius clipping
+            return (
+              <View key={idx} style={containerStyle}>
+                <SvgUri
+                  uri={uri}
+                  width={width || size.w}
+                  height={height || size.h}
+                />
+              </View>
+            );
+          }
+          return (
+            <View key={idx} style={containerStyle}>
+              <Image
+                source={{ uri }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode={resizeMode}
+              />
+            </View>
+          );
+        }
 
-      return null;
-    });
+        if (el?.type === "divider") {
+          const color = el?.style?.color || "#000";
+          const thickness = toNum(el?.style?.borderWidth, 2) * scaleW;
+          return (
+            <View
+              key={idx}
+              style={[
+                containerStyle,
+                { padding: 0, backgroundColor: "transparent" },
+              ]}
+            >
+              <View
+                style={{
+                  backgroundColor: color,
+                  height: thickness,
+                  width: "100%",
+                }}
+              />
+            </View>
+          );
+        }
+
+        return null;
+      });
   };
 
   const Front = (
@@ -289,22 +399,66 @@ function MobileCard({ card, onPress, side }) {
     </View>
   );
 
-  const showBack = side ? (side === 'verso') : flipped;
+  const showBack = side ? side === "verso" : flipped;
+
+  // Animate the flip when showBack changes
+  useEffect(() => {
+    isFlipped.value = withTiming(showBack ? 1 : 0, { duration: 500 });
+  }, [showBack, isFlipped]);
+
+  const isDirectionX = false; // flip on Y axis
+  const frontAnimatedStyle = useAnimatedStyle(() => {
+    const spinValue = interpolate(Number(isFlipped.value), [0, 1], [0, 180]);
+    const rotateValue = `${spinValue}deg`;
+    return {
+      transform: [
+        { perspective: 1000 },
+        isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
+        { scale: 1 },
+      ],
+    };
+  });
+  const backAnimatedStyle = useAnimatedStyle(() => {
+    const spinValue = interpolate(Number(isFlipped.value), [0, 1], [180, 360]);
+    const rotateValue = `${spinValue}deg`;
+    return {
+      transform: [
+        { perspective: 1000 },
+        isDirectionX ? { rotateX: rotateValue } : { rotateY: rotateValue },
+        { scale: 1 },
+      ],
+    };
+  });
   return (
     <View style={styles.wrapper}>
       <Pressable
         style={styles.press}
-        android_ripple={{ color: '#ddd' }}
-        onPress={() => { if (!side) setFlipped((f) => !f); }}
+        android_ripple={{ color: "#ddd" }}
+        onPress={() => {
+          if (!side) setFlipped((f) => !f);
+        }}
         onLongPress={onPress}
       >
-        {showBack ? Back : Front}
+        <View>
+          <Animated.View style={[styles.flipFront, styles.flipBase, frontAnimatedStyle]}>
+            {Front}
+          </Animated.View>
+          <Animated.View style={[styles.flipBack, styles.flipBase, backAnimatedStyle]}>
+            {Back}
+          </Animated.View>
+        </View>
       </Pressable>
       <View style={styles.metaRow}>
-        <Text style={styles.title} numberOfLines={1}>{card?.name || 'Carte'}</Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {card?.name || "Carte"}
+        </Text>
         {card?.isActive ? <Text style={styles.star}>★</Text> : null}
       </View>
-      {card?.matricule ? <Text style={styles.matricule} numberOfLines={1}>Matricule: {card.matricule}</Text> : null}
+      {card?.matricule ? (
+        <Text style={styles.matricule} numberOfLines={1}>
+          Matricule: {card.matricule}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -312,14 +466,54 @@ function MobileCard({ card, onPress, side }) {
 export default memo(MobileCard);
 
 const styles = StyleSheet.create({
-  wrapper: { padding: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#eee', marginBottom: 12 },
-  press: { width: '100%' },
-  cardContainer: { position: 'relative', width: '100%', aspectRatio: 7/4, borderRadius: 6, overflow: 'hidden', backgroundColor: '#eee' },
-  cardFace: { width: '100%', height: '100%' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  title: { fontWeight: '600', fontSize: 15, flex: 1 },
-  star: { color: '#f5b301', marginLeft: 6 },
-  matricule: { marginTop: 2, color: '#666' },
-  qrWrap: { position: 'absolute', right: 8, bottom: 8, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 6, padding: 4 },
+  wrapper: {
+    padding: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+    // subtle shadow/elevation
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  press: { width: "100%" },
+  cardContainer: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: 7 / 4,
+    borderRadius: 6,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+  },
+  flipBase: {
+    width: '100%',
+    aspectRatio: 7 / 4,
+    backfaceVisibility: 'hidden',
+    borderRadius: 6,
+  },
+  flipFront: {
+    position: 'absolute',
+    zIndex: 1,
+  },
+  flipBack: {
+    zIndex: 2,
+  },
+  cardFace: { width: "100%", height: "100%" },
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
+  title: { fontWeight: "600", fontSize: 15, flex: 1, color: colors.text },
+  star: { color: "#f5b301", marginLeft: 6 },
+  matricule: { marginTop: 2, color: colors.mutedText },
+  qrWrap: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 6,
+    padding: 4,
+  },
   qr: { width: 56, height: 56 },
 });
