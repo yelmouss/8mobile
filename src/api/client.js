@@ -8,6 +8,16 @@ let NEXT_BASE_URL = (typeof NEXT_EXTRA === 'string'
   ? NEXT_EXTRA
   : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
 
+// Prefer ngrok base if local host is detected (ensures parity with web env)
+const NGROK_FALLBACK = 'https://d3868a3be7b9.ngrok-free.app';
+try {
+  const u = new URL(NEXT_BASE_URL);
+  const localHosts = new Set(['localhost', '127.0.0.1', '10.0.2.2']);
+  if (localHosts.has(u.hostname)) {
+    NEXT_BASE_URL = NGROK_FALLBACK;
+  }
+} catch {}
+
 // Android emulator maps host machine localhost to 10.0.2.2
 if (Platform.OS === 'android') {
   try {
@@ -35,8 +45,16 @@ export async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
   if (token && !options.noAuth) headers['Authorization'] = `Bearer ${token}`;
+  // Avoid ngrok browser warning page
+  try {
+    const host = new URL(NEXT_BASE_URL).hostname;
+    if (host && host.includes('ngrok')) {
+      headers['ngrok-skip-browser-warning'] = 'true';
+    }
+  } catch {}
 
-  const res = await fetch(`${NEXT_BASE_URL}${path}`, {
+  const url = `${NEXT_BASE_URL}${path}`;
+  const res = await fetch(url, {
     ...options,
     headers,
   });
@@ -47,24 +65,34 @@ export async function apiFetch(path, options = {}) {
     throw err;
   }
 
+  // Prefer JSON, but gracefully handle text and attempt JSON parse
   const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data?.error || 'Request failed');
+  const text = await res.text();
+  const looksJson = text && (text.trim().startsWith('{') || text.trim().startsWith('['));
+  if (contentType.includes('application/json') || looksJson) {
+    try {
+      const data = JSON.parse(text);
+      if (!res.ok) {
+        const err = new Error(data?.error || 'Request failed');
+        err.status = res.status;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    } catch (e) {
+      // If server claimed JSON but parse failed, throw
+      const err = new Error('Réponse non valide du serveur');
       err.status = res.status;
-      err.data = data;
+      err.data = { raw: text };
       throw err;
     }
-    return data;
   }
-
   if (!res.ok) {
-    const err = new Error('Request failed');
+    const err = new Error(text || 'Request failed');
     err.status = res.status;
     throw err;
   }
-  return res.text();
+  return text;
 }
 
 export async function getMe() {

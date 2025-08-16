@@ -45,7 +45,8 @@ export default function DirectoryScreen({ navigation }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/api/annuaire', { noAuth: false });
+      // Annuaire is a public endpoint; avoid sending Bearer to prevent any server-side scoping quirks
+      const data = await apiFetch('/api/annuaire', { noAuth: true });
       let list = Array.isArray(data?.cards) ? data.cards : [];
       // Merge in my own active cards if missing (server annuaire should include them, but ensure parity)
       if (token) {
@@ -60,10 +61,21 @@ export default function DirectoryScreen({ navigation }) {
                 ...c,
                 ownerName: user?.name || c.ownerName,
                 ownerType: user?.userType || c.ownerType,
+                isMine: true,
               }));
             if (enriched.length) list = list.concat(enriched);
           }
         } catch {}
+      }
+      // Mark ownership on all cards
+      const normalizeId = (v) => (v == null ? '' : String(v));
+      const myId = normalizeId(user?._id || user?.id || user?.userId);
+      if (myId) {
+        list = list.map((c) => {
+          if (c.isMine) return c;
+          const ownerId = normalizeId(c.ownerId ?? c.userId ?? c.user?._id ?? c.owner?._id);
+          return { ...c, isMine: !!ownerId && ownerId === myId };
+        });
       }
       setCards(list);
       // Annuaire web ne voit pas le Bearer; recalcule isInRolodex côté mobile si on est connecté
@@ -100,6 +112,10 @@ export default function DirectoryScreen({ navigation }) {
 
   const toggleRolodex = useCallback(async (card) => {
     try {
+      if (card?.isMine) {
+        Alert.alert('Info', 'Cette carte vous appartient déjà.');
+        return;
+      }
       if (!token) {
         Alert.alert('Connexion requise', 'Veuillez vous connecter pour gérer votre rolodex.');
         return;
@@ -133,16 +149,21 @@ export default function DirectoryScreen({ navigation }) {
           {item?.ownerType ? (
             <View style={styles.chip}><Text style={styles.chipText}>{USER_TYPES.find(t => t.value === item.ownerType)?.label || item.ownerType}</Text></View>
           ) : null}
+          {item?.isMine ? (
+            <View style={[styles.chip, { marginLeft: 8 }]}><Text style={[styles.chipText, { fontWeight: '600' }]}>Ma carte</Text></View>
+          ) : null}
         </View>
       ) : null}
       <View style={styles.actionsRow}>
   <Pressable style={[styles.btn, styles.btnOutline]} onPress={() => openDetail(item._id)} accessibilityLabel="Voir la carte">
           <Text style={[styles.btnText, styles.btnOutlineText]}>Voir</Text>
         </Pressable>
-        <Pressable style={[styles.btn, styles.btnSecondary]} onPress={() => toggleRolodex(item)} accessibilityLabel="Ajouter au rolodex">
-          <MaterialCommunityIcons name={item.isInRolodex ? 'minus-circle-outline' : 'account-plus-outline'} size={18} color={item.isInRolodex ? '#b00020' : colors.primaryDark} />
-          <Text style={[styles.btnText, { marginLeft: 6, color: item.isInRolodex ? '#b00020' : colors.primaryDark }]}>{item.isInRolodex ? 'Retirer' : 'Ajouter'}</Text>
-        </Pressable>
+        {!item?.isMine ? (
+          <Pressable style={[styles.btn, styles.btnSecondary]} onPress={() => toggleRolodex(item)} accessibilityLabel="Ajouter au rolodex">
+            <MaterialCommunityIcons name={item.isInRolodex ? 'minus-circle-outline' : 'account-plus-outline'} size={18} color={item.isInRolodex ? '#b00020' : colors.primaryDark} />
+            <Text style={[styles.btnText, { marginLeft: 6, color: item.isInRolodex ? '#b00020' : colors.primaryDark }]}>{item.isInRolodex ? 'Retirer' : 'Ajouter'}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
