@@ -76,7 +76,7 @@ function Background({ background }) {
     return <View style={[styles.cardFace, { backgroundColor: value }]} />;
   }
   if (type === 'gradient' && value) {
-    // Parse simple CSS-like linear-gradient(…)
+  // Parse simple CSS-like linear-gradient(...)
     const match = String(value).match(/linear-gradient\(([^,]+),\s*([^%]+)%?,\s*([^%]+)%?\)/i);
     // Fallback to default gradient if parse fails
     const colors = value.includes('#') ? value.match(/#[0-9a-fA-F]{3,8}/g) : null;

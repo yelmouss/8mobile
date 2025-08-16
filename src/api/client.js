@@ -1,11 +1,23 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 // Resolve Next base URL from Expo config (supports string or {development,production})
 const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
-const NEXT_BASE_URL = (typeof NEXT_EXTRA === 'string'
+let NEXT_BASE_URL = (typeof NEXT_EXTRA === 'string'
   ? NEXT_EXTRA
   : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
+
+// Android emulator maps host machine localhost to 10.0.2.2
+if (Platform.OS === 'android') {
+  try {
+    const u = new URL(NEXT_BASE_URL);
+    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
+      u.hostname = '10.0.2.2';
+      NEXT_BASE_URL = u.toString().replace(/\/$/, '');
+    }
+  } catch {}
+}
 
 async function getToken() {
   try {
