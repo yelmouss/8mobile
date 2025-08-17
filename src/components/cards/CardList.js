@@ -7,6 +7,9 @@ import { colors } from '../../theme/theme';
 import { Pressable } from 'react-native';
 
 export default function CardList({ cards, onEdit, onDelete, ListEmptyComponent, refreshing, onRefresh }) {
+  console.log('CardList reçu:', cards?.length || 0, 'cartes');
+  console.log('Premier élément:', cards?.[0]);
+  
   return (
     <FlatList
       contentContainerStyle={{ padding: spacing.md }}

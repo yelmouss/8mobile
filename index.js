@@ -1,8 +1,11 @@
-import 'react-native-reanimated';
 import 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import { enableScreens } from 'react-native-screens';
-// Temporarily disable native screens to avoid RNSScreenContainer crash
+
+// Désactiver react-native-screens pour éviter l'erreur "large"
+// Cela force React Navigation à utiliser les vues JS natives
 enableScreens(false);
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

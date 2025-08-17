@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { navTheme, colors } from '../theme/theme';
 import HomeScreen from '../screens/HomeScreen';
-import CardsStack from './CardsStack';
+import CardsNavigationSimple from './CardsNavigationSimple';
 import RolodexScreen from '../screens/RolodexScreen';
 import DirectoryScreen from '../screens/DirectoryScreen';
 import TeamScreen from '../screens/TeamScreen';
@@ -16,7 +16,7 @@ const Tab = createBottomTabNavigator();
 
 const theme = navTheme;
 
-export default function MainTabs() {
+export default function MainTabsSimple() {
   return (
     <NavigationContainer
       theme={theme}
@@ -27,52 +27,34 @@ export default function MainTabs() {
       }
     >
       <Tab.Navigator
-        screenOptions={({ route }) => ({
+        screenOptions={{
           headerShown: false,
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-
-            if (route.name === 'Home') {
-              iconName = 'home-variant';
-            } else if (route.name === 'Cards') {
-              iconName = 'credit-card-multiple';
-            } else if (route.name === 'Rolodex') {
-              iconName = 'card-account-details-outline';
-            } else if (route.name === 'Directory') {
-              iconName = 'account-search';
-            } else if (route.name === 'Team') {
-              iconName = 'account-group';
-            } else if (route.name === 'Ads') {
-              iconName = 'bullhorn';
-            } else if (route.name === 'Settings') {
-              iconName = 'cog';
-            }
-
-            return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
-          },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.mutedText,
-          tabBarLabelStyle: {
-            fontSize: 12,
-          },
           tabBarStyle: {
             backgroundColor: colors.background,
             borderTopColor: colors.border,
           },
-        })}
+        }}
       >
         <Tab.Screen
           name="Home"
           component={HomeScreen}
           options={{
             title: 'Home',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="home-variant" color={color} size={size} />
+            ),
           }}
         />
         <Tab.Screen
           name="Cards"
-          component={CardsStack}
+          component={CardsNavigationSimple}
           options={{
             title: 'Cartes',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="credit-card-multiple" color={color} size={size} />
+            ),
           }}
         />
         <Tab.Screen
@@ -80,6 +62,9 @@ export default function MainTabs() {
           component={RolodexScreen}
           options={{
             title: 'Rolodex',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="card-account-details-outline" color={color} size={size} />
+            ),
           }}
         />
         <Tab.Screen
@@ -87,6 +72,9 @@ export default function MainTabs() {
           component={DirectoryScreen}
           options={{
             title: 'Annuaire',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="account-search" color={color} size={size} />
+            ),
           }}
         />
         <Tab.Screen
@@ -94,6 +82,9 @@ export default function MainTabs() {
           component={TeamScreen}
           options={{
             title: 'Collaborateurs',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="account-group" color={color} size={size} />
+            ),
           }}
         />
         <Tab.Screen
@@ -101,6 +92,9 @@ export default function MainTabs() {
           component={AdsScreen}
           options={{
             title: 'Annonces',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="bullhorn" color={color} size={size} />
+            ),
           }}
         />
         <Tab.Screen
@@ -108,6 +102,9 @@ export default function MainTabs() {
           component={SettingsScreen}
           options={{
             title: 'Paramètres',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="cog" color={color} size={size} />
+            ),
           }}
         />
       </Tab.Navigator>

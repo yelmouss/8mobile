@@ -29,8 +29,7 @@ export default function CardsScreen({ navigation }) {
     try {
       setError(null);
       const result = await getMyCards();
-      const cardsArray = result?.cards || result || [];
-      setCards(Array.isArray(cardsArray) ? cardsArray : []);
+      setCards(Array.isArray(result) ? result : []);
     } catch (e) {
       console.warn("Failed to load cards", e);
       setError("Impossible de charger vos cartes");
@@ -58,13 +57,13 @@ export default function CardsScreen({ navigation }) {
   };
 
   const openEdit = (card) => {
-    navigation.navigate('CardEditor', { mode: 'edit', card });
+    navigation.navigate('CardEditor', { editing: card, mode: 'edit' });
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mes cartes ({cards.length})</Text>
+        <Text style={styles.headerTitle}>Mes cartes</Text>
         <Pressable
           onPress={openNew}
           style={styles.iconBtn}

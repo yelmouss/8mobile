@@ -5,6 +5,7 @@ import { SvgUri, SvgXml } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
 import Constants from "expo-constants";
 import { colors } from "../theme/theme";
+import { calculateFontSize, toNum } from "../utils/cardDimensions";
 // Resolve base URL from Expo extra; supports string or {development,production}
 const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
 const BASE =
@@ -131,7 +132,7 @@ function QRBadge({ uri }) {
   );
 }
 
-function MobileCard({ card, onPress, side }) {
+function MobileCard({ card, onPress, side, editable = false, onElementPress, selectedElementIndex = -1 }) {
   const [flipped, setFlipped] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const isFlipped = useSharedValue(0);
@@ -147,11 +148,7 @@ function MobileCard({ card, onPress, side }) {
   // helpers
   const scaleW = size.w ? size.w / baseW : 1;
   const scaleH = size.h ? size.h / baseH : 1;
-  const toNum = (v, fallback) => {
-    if (typeof v === "number" && isFinite(v)) return v;
-    const n = parseFloat(v);
-    return isFinite(n) ? n : fallback;
-  };
+  // Utiliser les fonctions utilitaires partagées pour la cohérence
   const mapFontFamily = (f) => {
     if (!f) return undefined;
     const s = String(f).toLowerCase();
@@ -234,6 +231,8 @@ function MobileCard({ card, onPress, side }) {
         const rotation = toNum(el?.style?.rotation, 0);
         const zIndex = toNum(el?.position?.zIndex, 1);
 
+        const isSelected = editable && selectedElementIndex === idx;
+
         const containerStyle = {
           position: "absolute",
           left,
@@ -244,8 +243,9 @@ function MobileCard({ card, onPress, side }) {
           zIndex,
           backgroundColor: el?.style?.backgroundColor || "transparent",
           padding: toNum(el?.style?.padding, 0) * scaleW,
-          borderWidth: toNum(el?.style?.borderWidth, 0) * scaleW,
-          borderColor: el?.style?.borderColor || "transparent",
+          borderWidth: isSelected ? 2 : toNum(el?.style?.borderWidth, 0) * scaleW,
+          borderColor: isSelected ? "#0088ff" : (el?.style?.borderColor || "transparent"),
+          borderStyle: isSelected ? "dashed" : "solid",
           opacity:
             el?.style?.opacity === undefined ? 1 : toNum(el.style.opacity, 1),
           overflow: "hidden",
@@ -275,11 +275,8 @@ function MobileCard({ card, onPress, side }) {
           const fontStyle = sanitizeFontStyle(el?.style?.fontStyle);
           const textDecorationLine = sanitizeTextDecoration(el?.style?.textDecoration);
           const textAlign = sanitizeTextAlign(el?.style?.textAlign);
-          const providedFontSize = el?.style?.fontSize;
-          const fontSize =
-            providedFontSize != null
-              ? toNum(providedFontSize, 16)
-              : Math.max(8, 16 * scaleW);
+          // Utiliser la fonction de calcul cohérente pour la fontSize
+          const fontSize = calculateFontSize(width, height, el?.style?.fontSize);
           const letterSpacing =
             el?.style?.letterSpacing != null
               ? toNum(el.style.letterSpacing, undefined)
@@ -290,8 +287,10 @@ function MobileCard({ card, onPress, side }) {
               : undefined;
           const fontFamily = mapFontFamily(el?.style?.fontFamily);
 
+          const ElementContainer = editable ? Pressable : View;
+          
           return (
-            <View
+            <ElementContainer
               key={idx}
               style={[
                 containerStyle,
@@ -305,6 +304,7 @@ function MobileCard({ card, onPress, side }) {
                       : "center",
                 },
               ]}
+              onPress={editable ? () => onElementPress?.(idx) : undefined}
             >
               <Text
                 // Let text wrap within the container
@@ -324,7 +324,7 @@ function MobileCard({ card, onPress, side }) {
               >
                 {String(el?.content ?? "")}
               </Text>
-            </View>
+            </ElementContainer>
           );
         }
 
@@ -336,26 +336,37 @@ function MobileCard({ card, onPress, side }) {
           const isSvg =
             uri && (uri.endsWith(".svg") || uri.startsWith("data:image/svg"));
           const resizeMode = toResizeMode(el?.style?.objectFit || "contain");
+          const ElementContainer = editable ? Pressable : View;
+          
           if (isSvg) {
             // Wrap to allow borderRadius clipping
             return (
-              <View key={idx} style={containerStyle}>
+              <ElementContainer 
+                key={idx} 
+                style={containerStyle}
+                onPress={editable ? () => onElementPress?.(idx) : undefined}
+              >
                 <SvgUri
                   uri={uri}
                   width={width || size.w}
                   height={height || size.h}
                 />
-              </View>
+              </ElementContainer>
             );
           }
+          
           return (
-            <View key={idx} style={containerStyle}>
+            <ElementContainer 
+              key={idx} 
+              style={containerStyle}
+              onPress={editable ? () => onElementPress?.(idx) : undefined}
+            >
               <Image
                 source={{ uri }}
                 style={{ width: "100%", height: "100%" }}
                 resizeMode={resizeMode}
               />
-            </View>
+            </ElementContainer>
           );
         }
 
@@ -435,9 +446,10 @@ function MobileCard({ card, onPress, side }) {
         style={styles.press}
         android_ripple={{ color: "#ddd" }}
         onPress={() => {
-          if (!side) setFlipped((f) => !f);
+          if (!side && !editable) setFlipped((f) => !f);
         }}
         onLongPress={onPress}
+        disabled={editable}
       >
         <View>
           <Animated.View style={[styles.flipFront, styles.flipBase, frontAnimatedStyle]}>

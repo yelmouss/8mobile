@@ -1,11 +1,13 @@
+import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
 import { useCallback, useEffect } from 'react';
 import { StyleSheet, Alert, View, Text, Button } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import MainTabs from './src/navigation/MainTabs';
+import MainTabsSimple from './src/navigation/MainTabsSimple';
 import HomeScreen from './src/screens/HomeScreen';
 
 const NEXT_BASE_URL = (Constants?.expoConfig?.extra?.NEXT_BASE_URL) || 'http://localhost:3000';
@@ -52,7 +54,7 @@ function Root() {
   }
   return (
     <>
-      <MainTabs />
+      <MainTabsSimple />
       <StatusBar style="auto" />
     </>
   );
@@ -60,11 +62,13 @@ function Root() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
-        <Root />
-      </SafeAreaProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <Root />
+        </SafeAreaProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 
