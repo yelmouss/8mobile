@@ -7,6 +7,7 @@ import {
   Linking,
   Pressable,
 } from "react-native";
+import LoginPrompt from "../components/LoginPrompt";
 import { useAuth } from "../context/AuthContext";
 import Avatar from "../components/Avatar";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -48,16 +49,7 @@ export default function HomeScreen({ onStartOAuth, navigation }) {
   }, [navigation, load]);
 
   if (!token) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.title}>Bienvenue sur 8mobile</Text>
-        <Text style={styles.hint}>
-          Connectez-vous pour voir votre profil et vos cartes
-        </Text>
-        <View style={{ height: 12 }} />
-        <Button title="Se connecter avec Google" onPress={onStartOAuth} />
-      </SafeAreaView>
-    );
+    return <LoginPrompt onStartOAuth={onStartOAuth} />;
   }
 
   return (

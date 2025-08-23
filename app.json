@@ -4,10 +4,10 @@
     "slug": "8mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-  "userInterfaceStyle": "light",
+    "icon": "./assets/AppIcons/appstore.png",
+    "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/AppIcons/appstore.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/AppIcons/playstore.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -42,7 +42,7 @@
     },
     "scheme": "eight",
     "extra": {
-  "NEXT_BASE_URL": "https://d3868a3be7b9.ngrok-free.app"
+      "NEXT_BASE_URL": "https://resolved-marten-smashing.ngrok-free.app"
     }
   }
 }

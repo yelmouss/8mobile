@@ -30,9 +30,9 @@ export default function MainTabsSimple() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.mutedText,
+          tabBarInactiveTintColor: colors.background,
           tabBarStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: colors.primaryDark,
             borderTopColor: colors.border,
           },
         }}
@@ -81,7 +81,7 @@ export default function MainTabsSimple() {
           name="Team"
           component={TeamScreen}
           options={{
-            title: 'Collaborateurs',
+            title: 'Team',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="account-group" color={color} size={size} />
             ),
@@ -101,7 +101,7 @@ export default function MainTabsSimple() {
           name="Settings"
           component={SettingsScreen}
           options={{
-            title: 'Paramètres',
+            title: 'Compte',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="cog" color={color} size={size} />
             ),

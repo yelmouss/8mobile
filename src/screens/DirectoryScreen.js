@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from "react-native-safe-area-context";
 import FilterBar from '../components/common/FilterBar';
+import { ScrollView } from 'react-native';
 
 const USER_TYPES = [
   { value: '', label: 'Tous' },

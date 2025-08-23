@@ -9,7 +9,7 @@ let NEXT_BASE_URL = (typeof NEXT_EXTRA === 'string'
   : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
 
 // Prefer ngrok base if local host is detected (ensures parity with web env)
-const NGROK_FALLBACK = 'https://d3868a3be7b9.ngrok-free.app';
+const NGROK_FALLBACK = 'https://resolved-marten-smashing.ngrok-free.app';
 try {
   const u = new URL(NEXT_BASE_URL);
   const localHosts = new Set(['localhost', '127.0.0.1', '10.0.2.2']);
@@ -136,14 +136,28 @@ export async function getMyUploads() {
 export async function uploadImageFile(file) {
   // file: { uri, name, type }
   const token = await getToken();
+  // Correction: forcer le bon format d'objet pour FormData
+  const fileToSend = {
+    uri: file.uri,
+    name: file.fileName || file.name || 'photo.jpg',
+    type: file.type || 'image/jpeg',
+  };
+  console.log('Uploading image', fileToSend);
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', fileToSend);
+  // Ne jamais définir Content-Type pour FormData, fetch le fait automatiquement
+  const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
   const res = await fetch(`${NEXT_BASE_URL}/api/upload?type=image`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers,
     body: form,
   });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    data = {};
+  }
   if (!res.ok) {
     const err = new Error(data?.error || 'Upload failed');
     err.status = res.status;

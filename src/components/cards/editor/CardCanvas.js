@@ -22,11 +22,11 @@ export default function CardCanvas({
 }) {
   const containerRef = useRef(null);
 
-  console.log('🎯 CardCanvas: Props reçues', { 
-    cardLayoutElements: card?.layout?.elements?.length || 0,
-    selectedElementIndex,
-    editable 
-  });
+  // console.log('🎯 CardCanvas: Props reçues', { 
+  //   cardLayoutElements: card?.layout?.elements?.length || 0,
+  //   selectedElementIndex,
+  //   editable 
+  // });
 
   const handleElementMove = (elementIndex, newX, newY) => {
     if (onElementMove) {
@@ -50,15 +50,15 @@ export default function CardCanvas({
 
   const renderElements = (elements, face = 'front') => {
     if (!elements || !Array.isArray(elements)) {
-      console.log('❌ CardCanvas: Pas d\'éléments à rendre', { elements, face });
+      // console.log('❌ CardCanvas: Pas d\'éléments à rendre', { elements, face });
       return null;
     }
 
-    console.log('✅ CardCanvas: Rendu des éléments', { 
-      elementsCount: elements.length, 
-      face, 
-      elements: elements.map(el => ({ type: el.type, content: el.content }))
-    });
+    // console.log('✅ CardCanvas: Rendu des éléments', { 
+    //   elementsCount: elements.length, 
+    //   face, 
+    //   elements: elements.map(el => ({ type: el.type, content: el.content }))
+    // });
 
     return elements.map((element, index) => {
       if (!element || element.enabled === false) return null;
@@ -71,11 +71,11 @@ export default function CardCanvas({
       const width = percentToPx(parseFloat(element.style?.width || 20), 'width');
       const height = percentToPx(parseFloat(element.style?.height || 10), 'height');
 
-      console.log(`🎯 CardCanvas: Element ${index} position/size:`, {
-        element: { position: element.position, style: element.style },
-        computed: { x, y, width, height },
-        cardSize: { CARD_WIDTH, CARD_HEIGHT }
-      });
+      // console.log(`🎯 CardCanvas: Element ${index} position/size:`, {
+      //   element: { position: element.position, style: element.style },
+      //   computed: { x, y, width, height },
+      //   cardSize: { CARD_WIDTH, CARD_HEIGHT }
+      // });
 
       return (
         <DraggableElement

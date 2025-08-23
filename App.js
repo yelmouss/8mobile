@@ -1,37 +1,45 @@
-import 'react-native-gesture-handler';
-import { StatusBar } from 'expo-status-bar';
-import * as Linking from 'expo-linking';
-import Constants from 'expo-constants';
-import { useCallback, useEffect } from 'react';
-import { StyleSheet, Alert, View, Text, Button } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider, useAuth } from './src/context/AuthContext';
-import MainTabsSimple from './src/navigation/MainTabsSimple';
-import HomeScreen from './src/screens/HomeScreen';
+import "react-native-gesture-handler";
+import { StatusBar } from "expo-status-bar";
+import * as Linking from "expo-linking";
+import Constants from "expo-constants";
+import { useCallback, useEffect } from "react";
+import { StyleSheet, Alert, View, Text, Button } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import MainTabsSimple from "./src/navigation/MainTabsSimple";
+import HomeScreen from "./src/screens/HomeScreen";
 
-const NEXT_BASE_URL = (Constants?.expoConfig?.extra?.NEXT_BASE_URL) || 'http://localhost:3000';
-
+const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
+let NEXT_BASE_URL =
+  (typeof NEXT_EXTRA === "string"
+    ? NEXT_EXTRA
+    : NEXT_EXTRA?.production || NEXT_EXTRA?.development) ||
+  "http://localhost:3000";
+// ngrok http --url=resolved-marten-smashing.ngrok-free.app 3000
 function Root() {
   const { setToken, token } = useAuth();
 
-  const handleDeepLink = useCallback((event) => {
-    try {
-      const url = event.url;
-      const { queryParams } = Linking.parse(url);
-      if (queryParams?.token) {
-        setToken(queryParams.token);
-        Alert.alert('Connecté', 'Jeton reçu.');
-      } else if (queryParams?.error) {
-        Alert.alert('Erreur OAuth', String(queryParams.error));
+  const handleDeepLink = useCallback(
+    (event) => {
+      try {
+        const url = event.url;
+        const { queryParams } = Linking.parse(url);
+        if (queryParams?.token) {
+          setToken(queryParams.token);
+          // Alert.alert('Connecté', 'Jeton reçu.');
+        } else if (queryParams?.error) {
+          Alert.alert("Erreur OAuth", String(queryParams.error));
+        }
+      } catch (e) {
+        console.warn("Deep link parse error", e);
       }
-    } catch (e) {
-      console.warn('Deep link parse error', e);
-    }
-  }, [setToken]);
+    },
+    [setToken]
+  );
 
   useEffect(() => {
-    const sub = Linking.addEventListener('url', handleDeepLink);
+    const sub = Linking.addEventListener("url", handleDeepLink);
     Linking.getInitialURL().then((initialUrl) => {
       if (initialUrl) handleDeepLink({ url: initialUrl });
     });
@@ -39,8 +47,10 @@ function Root() {
   }, [handleDeepLink]);
 
   const startOAuth = useCallback(async () => {
-    const expoReturnUrl = Linking.createURL('oauth');
-    const signinUrl = `${NEXT_BASE_URL}/mobile/signin?returnUrl=${encodeURIComponent(expoReturnUrl)}`;
+    const expoReturnUrl = Linking.createURL("oauth");
+    const signinUrl = `${NEXT_BASE_URL}/mobile/signin?returnUrl=${encodeURIComponent(
+      expoReturnUrl
+    )}`;
     Linking.openURL(signinUrl);
   }, []);
 

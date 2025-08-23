@@ -13,7 +13,7 @@ export const navTheme = {
   dark: false,
   colors: {
     primary: colors.primary,
-    background: colors.background,
+    background: colors.primaryDark,
     card: colors.card,
     text: colors.text,
     border: colors.border,
