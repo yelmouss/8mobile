@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from "react";
 import {
-  View,
-  Text,
-  Pressable,
-  TextInput,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  Dimensions,
-  Platform,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { colors, spacing } from "../theme/theme";
-import { createCard, updateCard } from "../api/client";
-import { generateMatricule } from "../utils/cardUtils";
+  calculateFontSizeFromDimensions as calculateFontSizeFromDimensionsUtils,
+  getNumericIndex,
+  addElementToCard,
+  deleteElementFromCard,
+  duplicateElementInCard,
+  alignElementInCard,
+  generateMatricule,
+  pickImage,
+  takePhoto,
+  uploadFile,
+  selectAndUploadImage,
+  predefinedColors,
+  predefinedGradients,
+  validateImageDimensions,
+  getOptimalElementSize,
+  buildCardWithElements,
+  patchCardIsActive,
+  getTextElementFromCard,
+  setTextContentInCard,
+  updateElementStyleInCard,
+  // newly moved helpers
+  updateCardElements as utilUpdateCardElements,
+  startTextEditing as utilStartTextEditing,
+  saveTextEdit as utilSaveTextEdit,
+  cancelTextEdit as utilCancelTextEdit,
+  updateElementStyle as utilUpdateElementStyle,
+} from "../utils/cardUtils";
 import {
   CARD_WIDTH,
   CARD_HEIGHT,
@@ -22,77 +34,21 @@ import {
 } from "../utils/cardDimensions";
 import MobileCard from "../components/MobileCard";
 import CardCanvas from "../components/cards/editor/CardCanvas";
-
-const { width } = Dimensions.get("window");
-
-// Couleurs prédéfinies étendues
-const predefinedColors = [
-  // Couleurs de base
-  "#ffffff",
-  "#000000",
-  "#ff0000",
-  "#00ff00",
-  "#0000ff",
-  "#ffff00",
-  "#ff00ff",
-  "#00ffff",
-  "#ffa500",
-  "#800080",
-  "#008000",
-  "#ffc0cb",
-  "#a52a2a",
-  "#808080",
-  "#000080",
-  "#800000",
-  "#808000",
-  "#008080",
-
-  // Couleurs étendues
-  "#ff6b6b",
-  "#4ecdc4",
-  "#45b7d1",
-  "#96ceb4",
-  "#feca57",
-  "#ff9ff3",
-  "#f38ba8",
-  "#a8e6cf",
-  "#dda0dd",
-  "#98d8c8",
-  "#f7dc6f",
-  "#bb8fce",
-  "#85c1e9",
-  "#f8c471",
-  "#82e0aa",
-  "#f1948a",
-  "#85929e",
-  "#d5dbdb",
-
-  // Nuances de gris
-  "#f8f9fa",
-  "#e9ecef",
-  "#dee2e6",
-  "#ced4da",
-  "#adb5bd",
-  "#6c757d",
-  "#495057",
-  "#343a40",
-  "#212529",
-  "#1a1a1a",
-  "#0f0f0f",
-  "#050505",
-];
-
-// Gradients prédéfinis comme sur le web
-const predefinedGradients = [
-  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-  "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
-  "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%, #fecfef 100%)",
-  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
-];
+import { styles } from "../theme/CardEditorScreenStyles";
+import BackgroundsSelector from "../components/cards/BackgroundsSelector";
+import { updateCard, createCard, apiFetch } from "../api/client";
+import {
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  Alert,
+  Platform,
+} from "react-native";
+import {  Pressable } from "react-native";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors } from "../theme/theme";
 
 export default function CardEditorScreenSimple({ navigation, route }) {
   const { card, mode } = route.params || {};
@@ -115,28 +71,6 @@ export default function CardEditorScreenSimple({ navigation, route }) {
     };
   });
 
-  // Fonction utilitaire pour extraire l'index numérique du selectedElementIndex
-  const getNumericIndex = (elementIndexString) => {
-    if (typeof elementIndexString === "number") return elementIndexString;
-    if (
-      typeof elementIndexString === "string" &&
-      elementIndexString.includes("-")
-    ) {
-      return parseInt(elementIndexString.split("-")[1]);
-    }
-    return elementIndexString;
-  };
-
-  // Fonction wrapper pour utiliser la fonction partagée avec des pourcentages
-  const calculateFontSizeFromDimensions = (widthPercent, heightPercent) => {
-    // Convertir les pourcentages en pixels basés sur la taille de la carte
-    const pixelWidth = (widthPercent / 100) * CARD_WIDTH;
-    const pixelHeight = (heightPercent / 100) * CARD_HEIGHT;
-
-    // Utiliser la fonction partagée pour la cohérence
-    return calculateFontSize(pixelWidth, pixelHeight);
-  };
-
   // États pour le background - gestion améliorée des cartes existantes
   const [selectedBg, setSelectedBg] = useState(() => {
     if (card?.layout?.background) {
@@ -154,6 +88,12 @@ export default function CardEditorScreenSimple({ navigation, route }) {
     };
   });
 
+  // Switch pour activer/désactiver la carte
+  const [isActive, setIsActive] = useState(card?.isActive ?? true);
+
+  // Ne pas resynchroniser isActive depuis card après chaque sauvegarde :
+  // Laisser l'utilisateur contrôler le toggle localement, et ne synchroniser que lors de l'initialisation.
+
   // Debug les données de la carte
   useEffect(() => {
     if (card) {
@@ -166,272 +106,75 @@ export default function CardEditorScreenSimple({ navigation, route }) {
     }
   }, [card]);
 
-  // Fonction pour mettre à jour les éléments de la carte
+  // Mise à jour immédiate de isActive côté serveur (délégué à cardUtils)
+  const handleToggleActive = async () => {
+    const newValue = !isActive;
+    setIsActive(newValue);
+    if (isEditing && card?._id) {
+      try {
+        await patchCardIsActive(card._id, newValue, apiFetch);
+      } catch (e) {
+        // En cas d'erreur, rollback visuel
+        setIsActive(isActive);
+        Alert.alert(
+          "Erreur",
+          "Impossible de mettre à jour l'état actif de la carte"
+        );
+      }
+    }
+  };
+
+  // utiliser calculateFontSizeFromDimensionsUtils directement (défini dans utils)
+
+  // Fonction pour mettre à jour les éléments de la carte (délégué à utils)
   const updateCardElements = (newElements) => {
-    console.log("🔄 updateCardElements - Mise à jour des éléments:", {
-      nombreElements: newElements.length,
-      elements: newElements.map((e) => ({
-        type: e.type,
-        content: e.content?.substring(0, 50) + "...",
-        hasId: !!e._id,
-        position: e.position,
-        styleKeys: Object.keys(e.style || {}),
-      })),
-    });
-
-    if (!currentCard) {
-      console.log("❌ currentCard est null, création d'une nouvelle carte");
-      const newCard = {
-        name: name || "Nouvelle carte",
-        matricule: matricule || generateMatricule(),
-        elements: newElements,
-      };
-      setCurrentCard(newCard);
-      return;
-    }
-
-    const updatedCard = {
-      ...currentCard,
-      elements: newElements, // Stocker directement dans elements
-    };
-
-    setCurrentCard(updatedCard);
-  };
-
-  // Fonction pour ajouter un nouvel élément
-  const addElement = (type) => {
-    console.log("🎯 Ajout d'élément:", { type, currentCard: !!currentCard });
-
-    // Si pas de carte courante, créer une carte vide
-    if (!currentCard) {
-      const newCard = {
-        name: name || "Nouvelle carte",
-        matricule: matricule || generateMatricule(),
-        elements: [],
-      };
-      setCurrentCard(newCard);
-    }
-
-    const newElement = {
-      id: Date.now().toString(),
-      type: type === "vline" ? "line" : type, // Convertir vline en line
-      content:
-        type === "text"
-          ? "Nouveau texte"
-          : type === "image"
-          ? "https://via.placeholder.com/150x150/cccccc/666666?text=Image"
-          : "",
-      position: {
-        x: 25, // Position en pourcentage
-        y: 25,
-      },
-      style:
-        type === "text"
-          ? {
-              width: 30,
-              height: 10,
-              fontSize: 16,
-              fontFamily: "Arial, sans-serif",
-              fontWeight: "normal",
-              fontStyle: "normal",
-              textDecoration: "none",
-              textAlign: "left",
-              color: "#000000",
-              backgroundColor: "transparent",
-              opacity: 1,
-              borderRadius: 0,
-              borderWidth: 0,
-              borderColor: "transparent",
-              padding: 5,
-            }
-          : type === "image"
-          ? {
-              width: 25,
-              height: 25,
-              opacity: 1,
-              borderRadius: 0,
-              borderWidth: 0,
-              borderColor: "transparent",
-              backgroundColor: "transparent",
-            }
-          : type === "line"
-          ? {
-              width: 50,
-              height: 2,
-              backgroundColor: "#000000",
-              opacity: 1,
-              borderRadius: 0,
-            }
-          : type === "vline"
-          ? {
-              width: 2,
-              height: 50,
-              backgroundColor: "#000000",
-              opacity: 1,
-              borderRadius: 0,
-            }
-          : {
-              width: 20,
-              height: 10,
-            },
-      enabled: true,
-    };
-
-    const currentElements = currentCard?.elements || [];
-    const updatedElements = [...currentElements, newElement];
-    updateCardElements(updatedElements);
-
-    console.log("✅ Élément ajouté:", {
-      type,
-      newElement,
-      totalElements: updatedElements.length,
-    });
-  };
-
-  // Fonction pour supprimer un élément
-  const deleteElement = (elementIndexString) => {
-    if (!currentCard || elementIndexString === null) return;
-
-    // Utiliser la fonction utilitaire pour extraire l'index numérique
-    const elementIndex = getNumericIndex(elementIndexString);
-    const currentElements = currentCard.elements || [];
-
-    if (elementIndex >= 0 && elementIndex < currentElements.length) {
-      const updatedElements = currentElements.filter(
-        (_, index) => index !== elementIndex
-      );
-      updateCardElements(updatedElements);
-      setSelectedElementIndex(null);
-    }
+    const newCard = utilUpdateCardElements(
+      currentCard,
+      newElements,
+      name,
+      matricule,
+      generateMatricule
+    );
+    setCurrentCard(newCard);
   };
 
   // Fonctions d'édition avancées
   const startTextEditing = (elementIndex) => {
-    if (!currentCard?.elements) return;
-
-    const index =
-      typeof elementIndex === "string"
-        ? parseInt(elementIndex.split("-")[1] || "0")
-        : elementIndex;
-
-    const element = currentCard.elements[index];
-    if (element && element.type === "text") {
-      setEditingText(index);
-      setTextInputValue(element.content || "");
-    }
+    const res = utilStartTextEditing(currentCard, elementIndex);
+    setEditingText(res.editingIndex);
+    setTextInputValue(res.textValue);
   };
 
   const saveTextEdit = () => {
-    if (editingText === null || !currentCard?.elements) return;
-
-    const updatedElements = [...currentCard.elements];
-    if (updatedElements[editingText]) {
-      updatedElements[editingText] = {
-        ...updatedElements[editingText],
-        content: textInputValue,
-      };
-      updateCardElements(updatedElements);
-    }
-
+    if (editingText === null) return;
+    const updatedCard = utilSaveTextEdit(
+      currentCard,
+      editingText,
+      textInputValue
+    );
+    updateCardElements(updatedCard.elements || []);
     setEditingText(null);
     setTextInputValue("");
   };
 
   const cancelTextEdit = () => {
-    setEditingText(null);
-    setTextInputValue("");
+    const res = utilCancelTextEdit();
+    setEditingText(res.editingIndex);
+    setTextInputValue(res.textValue);
   };
 
   const updateElementStyle = (elementIndex, styleUpdates) => {
-    if (!currentCard?.elements) return;
-
-    // Utiliser la fonction utilitaire pour extraire l'index numérique
-    const numericIndex = getNumericIndex(elementIndex);
-
-    console.log("🎨 updateElementStyle:", {
+    if (!currentCard) return;
+    const updatedCard = utilUpdateElementStyle(
+      currentCard,
       elementIndex,
-      numericIndex,
+      styleUpdates
+    );
+    console.log("🎨 Élément mis à jour (delegated):", {
+      elementIndex,
       styleUpdates,
-      currentElement: currentCard.elements[numericIndex],
     });
-
-    const updatedElements = [...currentCard.elements];
-    if (updatedElements[numericIndex]) {
-      updatedElements[numericIndex] = {
-        ...updatedElements[numericIndex],
-        style: {
-          ...updatedElements[numericIndex].style,
-          ...styleUpdates,
-        },
-      };
-
-      console.log("🎨 Élément mis à jour:", updatedElements[numericIndex]);
-      updateCardElements(updatedElements);
-    }
-  };
-
-  const duplicateElement = (elementIndex) => {
-    if (!currentCard?.elements) return;
-
-    // Utiliser la fonction utilitaire pour extraire l'index numérique
-    const numericIndex = getNumericIndex(elementIndex);
-
-    const element = currentCard.elements[numericIndex];
-    if (element) {
-      const duplicated = {
-        ...element,
-        id: Date.now().toString(),
-        position: {
-          x: (element.position?.x || 0) + 5,
-          y: (element.position?.y || 0) + 5,
-        },
-      };
-
-      const updatedElements = [...currentCard.elements, duplicated];
-      updateCardElements(updatedElements);
-    }
-  };
-
-  const alignElements = (alignment) => {
-    if (!currentCard?.elements || selectedElementIndex === null) return;
-
-    // Utiliser la fonction utilitaire pour extraire l'index numérique
-    const numericIndex = getNumericIndex(selectedElementIndex);
-
-    const updatedElements = [...currentCard.elements];
-    const element = updatedElements[numericIndex];
-
-    if (element) {
-      let newPosition = { ...element.position };
-
-      switch (alignment) {
-        case "left":
-          newPosition.x = 5;
-          break;
-        case "center":
-          newPosition.x = 50 - (element.style?.width || 20) / 2;
-          break;
-        case "right":
-          newPosition.x = 95 - (element.style?.width || 20);
-          break;
-        case "top":
-          newPosition.y = 5;
-          break;
-        case "middle":
-          newPosition.y = 50 - (element.style?.height || 10) / 2;
-          break;
-        case "bottom":
-          newPosition.y = 95 - (element.style?.height || 10);
-          break;
-      }
-
-      updatedElements[numericIndex] = {
-        ...element,
-        position: newPosition,
-      };
-
-      updateCardElements(updatedElements);
-    }
+    updateCardElements(updatedCard.elements || []);
   };
 
   // Fonction pour rendre le panneau de propriétés
@@ -1136,6 +879,7 @@ export default function CardEditorScreenSimple({ navigation, route }) {
     try {
       setBusy(true);
 
+      // Forcer la valeur booléenne explicite
       const cardData = {
         name: name.trim(),
         matricule: matricule || generateMatricule(),
@@ -1143,6 +887,7 @@ export default function CardEditorScreenSimple({ navigation, route }) {
         verso: selectedBg.value, // Même background pour le verso
         rectoBackgroundType: selectedBg.type,
         versoBackgroundType: selectedBg.type,
+        isActive: !!isActive,
         // Envoyer les éléments dans les deux structures que le serveur peut attendre
         elements: currentCard?.elements || [], // Au niveau racine
         layout: {
@@ -1155,25 +900,23 @@ export default function CardEditorScreenSimple({ navigation, route }) {
         },
       };
 
-      console.log("💾 Sauvegarde carte avec éléments:", {
-        cardId: card?._id,
-        elementsCount: currentCard?.elements?.length || 0,
-        elements: currentCard?.elements,
-        cardData: JSON.stringify(cardData, null, 2),
-      });
-
       if (isEditing && card?._id) {
-        console.log("🔄 Mise à jour carte existante:", card._id);
         const result = await updateCard(card._id, cardData);
-        console.log("✅ Carte sauvegardée avec succès");
+
+        // Mettre à jour l'état local après la sauvegarde
+        if (result?.card?.isActive !== undefined) {
+          setIsActive(result.card.isActive);
+        }
 
         Alert.alert("Succès", "Carte modifiée avec succès", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
       } else {
-        console.log("🆕 Création nouvelle carte");
         const result = await createCard(cardData);
-        console.log("✅ Résultat création:", result);
+
+        if (result?.card?.isActive !== undefined) {
+          setIsActive(result.card.isActive);
+        }
         Alert.alert("Succès", "Carte créée avec succès", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
@@ -1193,97 +936,6 @@ export default function CardEditorScreenSimple({ navigation, route }) {
       setBusy(false);
     }
   };
-
-  const renderColorPicker = () => (
-    <View style={styles.colorGrid}>
-      {predefinedColors.map((color, index) => (
-        <Pressable
-          key={index}
-          style={[
-            styles.colorOption,
-            { backgroundColor: color },
-            selectedBg.type === "color" &&
-              selectedBg.value === color &&
-              styles.colorOptionSelected,
-          ]}
-          onPress={() => setSelectedBg({ type: "color", value: color })}
-        >
-          {selectedBg.type === "color" && selectedBg.value === color && (
-            <MaterialCommunityIcons
-              name="check"
-              size={20}
-              color={color === "#ffffff" ? "#000000" : "#ffffff"}
-            />
-          )}
-        </Pressable>
-      ))}
-    </View>
-  );
-
-  const renderGradientPicker = () => (
-    <View style={styles.colorGrid}>
-      {predefinedGradients.map((gradient, index) => (
-        <Pressable
-          key={index}
-          style={[
-            styles.gradientOption,
-            selectedBg.type === "gradient" &&
-              selectedBg.value === gradient &&
-              styles.colorOptionSelected,
-          ]}
-          onPress={() => setSelectedBg({ type: "gradient", value: gradient })}
-        >
-          <View
-            style={[styles.gradientPreview, { backgroundColor: "#4facfe" }]}
-          />
-          {selectedBg.type === "gradient" && selectedBg.value === gradient && (
-            <MaterialCommunityIcons name="check" size={20} color="#ffffff" />
-          )}
-        </Pressable>
-      ))}
-    </View>
-  );
-
-  const renderImagePicker = () => (
-    <View style={styles.imageGrid}>
-      {bgLoading ? (
-        <Text style={styles.loadingText}>Chargement des images...</Text>
-      ) : allImages.length > 0 ? (
-        allImages.map((img, index) => (
-          <Pressable
-            key={index}
-            style={[
-              styles.imageOption,
-              selectedBg.type === "image" &&
-                selectedBg.value === img.value &&
-                styles.imageOptionSelected,
-            ]}
-            onPress={() => setSelectedBg({ type: "image", value: img.value })}
-          >
-            {/* Ici on pourrait ajouter une Image component pour afficher la miniature */}
-            <View style={styles.imagePlaceholder}>
-              <MaterialCommunityIcons
-                name="image"
-                size={30}
-                color={colors.mutedText}
-              />
-            </View>
-            {selectedBg.type === "image" && selectedBg.value === img.value && (
-              <View style={styles.imageCheckbox}>
-                <MaterialCommunityIcons
-                  name="check"
-                  size={16}
-                  color="#ffffff"
-                />
-              </View>
-            )}
-          </Pressable>
-        ))
-      ) : (
-        <Text style={styles.emptyText}>Aucune image disponible</Text>
-      )}
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1419,10 +1071,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
 
                         // Pour les textes, ajuster automatiquement la taille de police comme dans l'app web
                         if (element.type === "text") {
-                          const newFontSize = calculateFontSizeFromDimensions(
-                            percentWidth,
-                            percentHeight
-                          );
+                          const newFontSize =
+                            calculateFontSizeFromDimensionsUtils(
+                              percentWidth,
+                              percentHeight,
+                              CARD_WIDTH,
+                              CARD_HEIGHT,
+                              calculateFontSize
+                            );
                           newStyle.fontSize = newFontSize;
 
                           console.log(
@@ -1535,7 +1191,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
             <View style={styles.toolbarContainer}>
               <Pressable
                 style={styles.toolButton}
-                onPress={() => addElement("text")}
+                onPress={() => {
+                  const newCard = addElementToCard(
+                    currentCard,
+                    "text",
+                    generateMatricule
+                  );
+                  updateCardElements(newCard.elements || []);
+                }}
               >
                 <MaterialCommunityIcons
                   name="format-text"
@@ -1547,7 +1210,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
 
               <Pressable
                 style={styles.toolButton}
-                onPress={() => addElement("image")}
+                onPress={() => {
+                  const newCard = addElementToCard(
+                    currentCard,
+                    "image",
+                    generateMatricule
+                  );
+                  updateCardElements(newCard.elements || []);
+                }}
               >
                 <MaterialCommunityIcons
                   name="image"
@@ -1559,7 +1229,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
 
               <Pressable
                 style={styles.toolButton}
-                onPress={() => addElement("line")}
+                onPress={() => {
+                  const newCard = addElementToCard(
+                    currentCard,
+                    "line",
+                    generateMatricule
+                  );
+                  updateCardElements(newCard.elements || []);
+                }}
               >
                 <MaterialCommunityIcons
                   name="minus"
@@ -1571,7 +1248,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
 
               <Pressable
                 style={styles.toolButton}
-                onPress={() => addElement("vline")}
+                onPress={() => {
+                  const newCard = addElementToCard(
+                    currentCard,
+                    "vline",
+                    generateMatricule
+                  );
+                  updateCardElements(newCard.elements || []);
+                }}
               >
                 <MaterialCommunityIcons
                   name="minus"
@@ -1598,7 +1282,13 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                 <>
                   <Pressable
                     style={styles.toolButton}
-                    onPress={() => duplicateElement(selectedElementIndex)}
+                    onPress={() => {
+                      const updatedCard = duplicateElementInCard(
+                        currentCard,
+                        selectedElementIndex
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="content-copy"
@@ -1622,7 +1312,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
 
                   <Pressable
                     style={[styles.toolButton, styles.deleteButton]}
-                    onPress={() => deleteElement(selectedElementIndex)}
+                    onPress={() => {
+                      const updatedCard = deleteElementFromCard(
+                        currentCard,
+                        selectedElementIndex
+                      );
+                      setSelectedElementIndex(null);
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="delete"
@@ -1646,7 +1343,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                 <View style={styles.alignmentGrid}>
                   <Pressable
                     style={styles.alignButton}
-                    onPress={() => alignElements("left")}
+                    onPress={() => {
+                      const updatedCard = alignElementInCard(
+                        currentCard,
+                        selectedElementIndex,
+                        "left"
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="format-align-left"
@@ -1656,7 +1360,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                   </Pressable>
                   <Pressable
                     style={styles.alignButton}
-                    onPress={() => alignElements("center")}
+                    onPress={() => {
+                      const updatedCard = alignElementInCard(
+                        currentCard,
+                        selectedElementIndex,
+                        "center"
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="format-align-center"
@@ -1666,7 +1377,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                   </Pressable>
                   <Pressable
                     style={styles.alignButton}
-                    onPress={() => alignElements("right")}
+                    onPress={() => {
+                      const updatedCard = alignElementInCard(
+                        currentCard,
+                        selectedElementIndex,
+                        "right"
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="format-align-right"
@@ -1676,7 +1394,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                   </Pressable>
                   <Pressable
                     style={styles.alignButton}
-                    onPress={() => alignElements("top")}
+                    onPress={() => {
+                      const updatedCard = alignElementInCard(
+                        currentCard,
+                        selectedElementIndex,
+                        "top"
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="format-align-top"
@@ -1686,7 +1411,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                   </Pressable>
                   <Pressable
                     style={styles.alignButton}
-                    onPress={() => alignElements("middle")}
+                    onPress={() => {
+                      const updatedCard = alignElementInCard(
+                        currentCard,
+                        selectedElementIndex,
+                        "middle"
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="format-align-middle"
@@ -1696,7 +1428,14 @@ export default function CardEditorScreenSimple({ navigation, route }) {
                   </Pressable>
                   <Pressable
                     style={styles.alignButton}
-                    onPress={() => alignElements("bottom")}
+                    onPress={() => {
+                      const updatedCard = alignElementInCard(
+                        currentCard,
+                        selectedElementIndex,
+                        "bottom"
+                      );
+                      updateCardElements(updatedCard.elements || []);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="format-align-bottom"
@@ -1784,59 +1523,34 @@ export default function CardEditorScreenSimple({ navigation, route }) {
           </View>
         </View>
 
-        {/* Sélecteur de background */}
+        {/* Sélecteur de background (nouveau composant) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Arrière-plan</Text>
+          <BackgroundsSelector selected={selectedBg} onSelect={setSelectedBg} />
+        </View>
 
-          {/* Onglets */}
-          <View style={styles.tabContainer}>
-            <Pressable
-              style={[styles.tab, activeTab === 0 && styles.activeTab]}
-              onPress={() => setActiveTab(0)}
+        {/* Switch isActive */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Carte active</Text>
+          <Pressable
+            onPress={handleToggleActive}
+            style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}
+          >
+            <MaterialCommunityIcons
+              name={isActive ? "toggle-switch" : "toggle-switch-off-outline"}
+              size={36}
+              color={isActive ? colors.primary : colors.mutedText}
+            />
+            <Text
+              style={{
+                marginLeft: 12,
+                color: isActive ? colors.primary : colors.mutedText,
+                fontWeight: "600",
+              }}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 0 && styles.activeTabText,
-                ]}
-              >
-                Couleurs
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, activeTab === 1 && styles.activeTab]}
-              onPress={() => setActiveTab(1)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 1 && styles.activeTabText,
-                ]}
-              >
-                Gradients
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, activeTab === 2 && styles.activeTab]}
-              onPress={() => setActiveTab(2)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 2 && styles.activeTabText,
-                ]}
-              >
-                Images
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Contenu des onglets */}
-          <View style={styles.tabContent}>
-            {activeTab === 0 && renderColorPicker()}
-            {activeTab === 1 && renderGradientPicker()}
-            {activeTab === 2 && renderImagePicker()}
-          </View>
+              {isActive ? "Active" : "Inactive"}
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -1844,711 +1558,3 @@ export default function CardEditorScreenSimple({ navigation, route }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  closeBtn: {
-    padding: 8,
-    borderRadius: 20,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
-    flex: 1,
-    textAlign: "center",
-  },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  saveBtnText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  content: {
-    flex: 1,
-  },
-  previewSection: {
-    padding: 16,
-    backgroundColor: colors.surface,
-    marginBottom: 8,
-  },
-  cardContainer: {
-    alignItems: "center",
-    paddingVertical: 16,
-  },
-  section: {
-    padding: 16,
-    backgroundColor: colors.surface,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.text,
-    marginBottom: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-    color: colors.text,
-  },
-  matriculeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  matriculeInput: {
-    flex: 1,
-  },
-  regenerateButton: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: colors.border,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  activeTab: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.mutedText,
-  },
-  activeTabText: {
-    color: "#fff",
-  },
-  tabContent: {
-    minHeight: 200,
-  },
-  colorGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  colorOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  colorOptionSelected: {
-    borderColor: colors.primary,
-    borderWidth: 3,
-  },
-  gradientOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-    overflow: "hidden",
-  },
-  gradientPreview: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 6,
-  },
-  imageGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  imageOption: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "transparent",
-    overflow: "hidden",
-  },
-  imageOptionSelected: {
-    borderColor: colors.primary,
-    borderWidth: 3,
-  },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.border,
-  },
-  imageCheckbox: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    textAlign: "center",
-    color: colors.mutedText,
-    fontSize: 16,
-    paddingVertical: 32,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: colors.mutedText,
-    fontSize: 16,
-    paddingVertical: 32,
-  },
-  bottomSpacer: {
-    height: 50,
-  },
-  toolbarSection: {
-    padding: 16,
-    backgroundColor: colors.surface,
-    marginBottom: 8,
-  },
-  toolbarContainer: {
-    flexDirection: "row",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  toolButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "#fff",
-    minWidth: 80,
-  },
-  toolButtonText: {
-    fontSize: 12,
-    color: "#007AFF",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  deleteButton: {
-    borderColor: "#FF3B30",
-  },
-  deleteButtonText: {
-    color: "#FF3B30",
-  },
-
-  // Styles pour les outils d'édition avancés
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  elementsCounter: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "500",
-  },
-  subSectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.text,
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  alignmentToolbar: {
-    backgroundColor: "#f8f9fa",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  alignmentGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  alignButton: {
-    padding: 8,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  propertyPanel: {
-    backgroundColor: "#f8f9fa",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    maxHeight: 400,
-  },
-  propertyContent: {
-    gap: 12,
-  },
-  propertyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 8,
-  },
-  propertyButtonText: {
-    fontSize: 14,
-    color: "#007AFF",
-  },
-  propertyLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: colors.text,
-    marginBottom: 4,
-  },
-
-  // Styles pour les contrôles de police
-  fontFamilyControl: {
-    gap: 4,
-  },
-  fontFamilyButtons: {
-    gap: 6,
-  },
-  fontFamilyButton: {
-    padding: 8,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-  },
-  selectedFontButton: {
-    borderColor: "#007AFF",
-    backgroundColor: "#f0f8ff",
-  },
-  fontButtonText: {
-    fontSize: 12,
-    color: colors.text,
-  },
-
-  fontStyleControl: {
-    gap: 4,
-  },
-  fontStyleButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  styleButton: {
-    padding: 8,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    width: 40,
-    height: 40,
-  },
-  selectedStyleButton: {
-    borderColor: "#007AFF",
-    backgroundColor: "#f0f8ff",
-  },
-
-  textAlignControl: {
-    gap: 4,
-  },
-  textAlignButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  selectedAlignButton: {
-    borderColor: "#007AFF",
-    backgroundColor: "#f0f8ff",
-  },
-
-  // Styles pour les couleurs
-  colorPicker: {
-    gap: 4,
-  },
-  backgroundColorPicker: {
-    gap: 4,
-  },
-  colorOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  colorOptionSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  selectedColorOption: {
-    borderColor: "#007AFF",
-  },
-
-  fontSizeControl: {
-    gap: 4,
-  },
-  fontSizeButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  fontSizeButton: {
-    padding: 6,
-    backgroundColor: "#fff",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  fontSizeText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-  },
-  fontSizeValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#007AFF",
-    minWidth: 40,
-    textAlign: "center",
-  },
-
-  // Styles pour les images
-  borderRadiusControl: {
-    gap: 8,
-  },
-  borderRadiusButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  radiusButton: {
-    flex: 1,
-    alignItems: "center",
-    padding: 8,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 4,
-  },
-  radiusButtonText: {
-    fontSize: 11,
-    color: "#007AFF",
-  },
-
-  manualRadiusControl: {
-    gap: 4,
-  },
-  radiusSlider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  radiusSliderButton: {
-    padding: 6,
-    backgroundColor: "#fff",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  radiusValue: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-    minWidth: 40,
-    textAlign: "center",
-  },
-
-  // Styles pour les lignes
-  lineThicknessControl: {
-    gap: 4,
-  },
-  thicknessButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  thicknessButton: {
-    padding: 6,
-    backgroundColor: "#fff",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  thicknessText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-  },
-
-  // Styles pour les contrôles communs
-  commonControls: {
-    gap: 12,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  opacityControl: {
-    gap: 4,
-  },
-  opacityButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  opacityButton: {
-    padding: 6,
-    backgroundColor: "#fff",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  opacityText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-    minWidth: 40,
-    textAlign: "center",
-  },
-
-  rotationControl: {
-    gap: 4,
-  },
-  rotationButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  rotationButton: {
-    padding: 6,
-    backgroundColor: "#fff",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rotationText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text,
-    minWidth: 40,
-    textAlign: "center",
-  },
-  textEditor: {
-    backgroundColor: "#f8f9fa",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  textInput: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 14,
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-
-  // Styles pour les contrôles de taille
-  sizeControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#f8f9fa",
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e9ecef",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  sizeButton: {
-    backgroundColor: "#007AFF",
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  sizeDisplay: {
-    alignItems: "center",
-    flex: 1,
-    marginHorizontal: 20,
-    backgroundColor: "#f8f9fa",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#e9ecef",
-  },
-  sizeLabel: {
-    fontSize: 11,
-    color: "#6c757d",
-    fontWeight: "600",
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  sizeValue: {
-    fontSize: 16,
-    color: "#007AFF",
-    fontWeight: "700",
-  },
-
-  textEditorButtons: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-  },
-  saveButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: "#007AFF",
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontWeight: "500",
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    color: colors.text,
-    fontWeight: "500",
-  },
-
-  // Styles debug
-  debugInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  // Styles pour les contrôles de taille
-  sizeControls: {
-    backgroundColor: "#f8f9fa",
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e1e5e9",
-  },
-  sizeLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.text,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  sizeButtonsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-  },
-  sizeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sizeButtonDisabled: {
-    borderColor: "#ccc",
-    backgroundColor: "#f5f5f5",
-  },
-  sizeDisplay: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 80,
-    alignItems: "center",
-  },
-  sizeValue: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  sizeUnit: {
-    color: "#fff",
-    fontSize: 12,
-    marginTop: 2,
-  },
-});

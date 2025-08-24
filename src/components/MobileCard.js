@@ -1,6 +1,11 @@
 import React, { useState, memo, useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, Image, Pressable } from "react-native";
-import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SvgUri, SvgXml } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
 import Constants from "expo-constants";
@@ -132,7 +137,14 @@ function QRBadge({ uri }) {
   );
 }
 
-function MobileCard({ card, onPress, side, editable = false, onElementPress, selectedElementIndex = -1 }) {
+function MobileCard({
+  card,
+  onPress,
+  side,
+  editable = false,
+  onElementPress,
+  selectedElementIndex = -1,
+}) {
   const [flipped, setFlipped] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const isFlipped = useSharedValue(0);
@@ -157,23 +169,42 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
     return "sans-serif";
   };
   const sanitizeFontWeight = (w) => {
-    if (!w) return 'normal';
+    if (!w) return "normal";
     const s = String(w).toLowerCase();
-    const allowed = new Set(['normal','bold','100','200','300','400','500','600','700','800','900']);
-    return allowed.has(s) ? s : 'normal';
+    const allowed = new Set([
+      "normal",
+      "bold",
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+    ]);
+    return allowed.has(s) ? s : "normal";
   };
   const sanitizeFontStyle = (v) => {
-    if (!v) return 'normal';
+    if (!v) return "normal";
     const s = String(v).toLowerCase();
-    return s === 'italic' ? 'italic' : 'normal';
+    return s === "italic" ? "italic" : "normal";
   };
   const sanitizeTextAlign = (v) => {
-    const s = String(v || 'left').toLowerCase();
-    return ['left','right','center','justify'].includes(s) ? s : 'left';
+    const s = String(v || "left").toLowerCase();
+    return ["left", "right", "center", "justify"].includes(s) ? s : "left";
   };
   const sanitizeTextDecoration = (v) => {
-    const s = String(v || 'none').toLowerCase();
-    return ['none','underline','line-through','underline line-through'].includes(s) ? s : 'none';
+    const s = String(v || "none").toLowerCase();
+    return [
+      "none",
+      "underline",
+      "line-through",
+      "underline line-through",
+    ].includes(s)
+      ? s
+      : "none";
   };
   const toResizeMode = (fit) => {
     switch ((fit || "contain").toLowerCase()) {
@@ -243,8 +274,12 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
           zIndex,
           backgroundColor: el?.style?.backgroundColor || "transparent",
           padding: toNum(el?.style?.padding, 0) * scaleW,
-          borderWidth: isSelected ? 2 : toNum(el?.style?.borderWidth, 0) * scaleW,
-          borderColor: isSelected ? "#0088ff" : (el?.style?.borderColor || "transparent"),
+          borderWidth: isSelected
+            ? 2
+            : toNum(el?.style?.borderWidth, 0) * scaleW,
+          borderColor: isSelected
+            ? "#0088ff"
+            : el?.style?.borderColor || "transparent",
           borderStyle: isSelected ? "dashed" : "solid",
           opacity:
             el?.style?.opacity === undefined ? 1 : toNum(el.style.opacity, 1),
@@ -273,10 +308,16 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
           const color = el?.style?.color || "#000";
           const fontWeight = sanitizeFontWeight(el?.style?.fontWeight);
           const fontStyle = sanitizeFontStyle(el?.style?.fontStyle);
-          const textDecorationLine = sanitizeTextDecoration(el?.style?.textDecoration);
+          const textDecorationLine = sanitizeTextDecoration(
+            el?.style?.textDecoration
+          );
           const textAlign = sanitizeTextAlign(el?.style?.textAlign);
           // Utiliser la fonction de calcul cohérente pour la fontSize
-          const fontSize = calculateFontSize(width, height, el?.style?.fontSize);
+          const fontSize = calculateFontSize(
+            width,
+            height,
+            el?.style?.fontSize
+          );
           const letterSpacing =
             el?.style?.letterSpacing != null
               ? toNum(el.style.letterSpacing, undefined)
@@ -288,7 +329,7 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
           const fontFamily = mapFontFamily(el?.style?.fontFamily);
 
           const ElementContainer = editable ? Pressable : View;
-          
+
           return (
             <ElementContainer
               key={idx}
@@ -337,12 +378,12 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
             uri && (uri.endsWith(".svg") || uri.startsWith("data:image/svg"));
           const resizeMode = toResizeMode(el?.style?.objectFit || "contain");
           const ElementContainer = editable ? Pressable : View;
-          
+
           if (isSvg) {
             // Wrap to allow borderRadius clipping
             return (
-              <ElementContainer 
-                key={idx} 
+              <ElementContainer
+                key={idx}
                 style={containerStyle}
                 onPress={editable ? () => onElementPress?.(idx) : undefined}
               >
@@ -354,10 +395,10 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
               </ElementContainer>
             );
           }
-          
+
           return (
-            <ElementContainer 
-              key={idx} 
+            <ElementContainer
+              key={idx}
               style={containerStyle}
               onPress={editable ? () => onElementPress?.(idx) : undefined}
             >
@@ -452,10 +493,14 @@ function MobileCard({ card, onPress, side, editable = false, onElementPress, sel
         disabled={editable}
       >
         <View>
-          <Animated.View style={[styles.flipFront, styles.flipBase, frontAnimatedStyle]}>
+          <Animated.View
+            style={[styles.flipFront, styles.flipBase, frontAnimatedStyle]}
+          >
             {Front}
           </Animated.View>
-          <Animated.View style={[styles.flipBack, styles.flipBase, backAnimatedStyle]}>
+          <Animated.View
+            style={[styles.flipBack, styles.flipBase, backAnimatedStyle]}
+          >
             {Back}
           </Animated.View>
         </View>
@@ -480,13 +525,13 @@ export default memo(MobileCard);
 const styles = StyleSheet.create({
   wrapper: {
     padding: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primaryDark,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 12,
     // subtle shadow/elevation
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -502,13 +547,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   flipBase: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 7 / 4,
-    backfaceVisibility: 'hidden',
+    backfaceVisibility: "hidden",
     borderRadius: 6,
   },
   flipFront: {
-    position: 'absolute',
+    position: "absolute",
     zIndex: 1,
   },
   flipBack: {
@@ -516,9 +561,9 @@ const styles = StyleSheet.create({
   },
   cardFace: { width: "100%", height: "100%" },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  title: { fontWeight: "600", fontSize: 15, flex: 1, color: colors.text },
+  title: { fontWeight: "600", fontSize: 15, flex: 1, color: colors.surface },
   star: { color: "#f5b301", marginLeft: 6 },
-  matricule: { marginTop: 2, color: colors.mutedText },
+  matricule: { marginTop: 2, color: colors.background },
   qrWrap: {
     position: "absolute",
     right: 8,

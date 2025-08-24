@@ -109,12 +109,13 @@ const styles = StyleSheet.create({
     marginTop: "auto",
   },
   scrollContent: {
-    flexGrow: 1,
-    flex: 1,
+    display: "flex",
+    flexDirection: "column",
     minHeight: "100%",
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
+    paddingTop: '50%',
     // backgroundColor: colors.surface,
   },
   logoWrap: {
@@ -160,6 +161,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     lineHeight: 22,
     fontWeight: "500",
+    marginTop:'auto'
   },
   googleBtn: {
     flexDirection: "row",
