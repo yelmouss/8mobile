@@ -15,7 +15,7 @@ let NEXT_BASE_URL =
   (typeof NEXT_EXTRA === "string"
     ? NEXT_EXTRA
     : NEXT_EXTRA?.production || NEXT_EXTRA?.development) ||
-  "http://localhost:3000";
+  "https://8cartes.com";
 // ngrok http --url=resolved-marten-smashing.ngrok-free.app 3000
 function Root() {
   const { setToken, token } = useAuth();

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "8mobile",
-    "slug": "8mobile",
+    "name": "8cartes",
+    "slug": "8cartes",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/AppIcons/appstore.png",
@@ -33,7 +33,10 @@
               "host": "oauth"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -42,7 +45,14 @@
     },
     "scheme": "eight",
     "extra": {
-      "NEXT_BASE_URL": "https://resolved-marten-smashing.ngrok-free.app"
-    }
+      "NEXT_BASE_URL": "https://8cartes.com",
+      "eas": {
+        "projectId": "2ded00a6-a298-4eaa-880d-ca59c9e78b4a"
+      }
+    },
+    "owner": "yelmouss",
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

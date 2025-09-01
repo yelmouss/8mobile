@@ -1,37 +1,39 @@
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
 
 // Resolve Next base URL from Expo config (supports string or {development,production})
 const NEXT_EXTRA = Constants?.expoConfig?.extra?.NEXT_BASE_URL;
-let NEXT_BASE_URL = (typeof NEXT_EXTRA === 'string'
-  ? NEXT_EXTRA
-  : (NEXT_EXTRA?.production || NEXT_EXTRA?.development)) || 'http://localhost:3000';
+let NEXT_BASE_URL =
+  (typeof NEXT_EXTRA === "string"
+    ? NEXT_EXTRA
+    : NEXT_EXTRA?.production || NEXT_EXTRA?.development) ||
+  "https://8cartes.com";
 
 // Prefer ngrok base if local host is detected (ensures parity with web env)
-const NGROK_FALLBACK = 'https://resolved-marten-smashing.ngrok-free.app';
+const NGROK_FALLBACK = "https://8cartes.com";
 try {
   const u = new URL(NEXT_BASE_URL);
-  const localHosts = new Set(['localhost', '127.0.0.1', '10.0.2.2']);
+  const localHosts = new Set(["localhost", "127.0.0.1", "10.0.2.2"]);
   if (localHosts.has(u.hostname)) {
     NEXT_BASE_URL = NGROK_FALLBACK;
   }
 } catch {}
 
 // Android emulator maps host machine localhost to 10.0.2.2
-if (Platform.OS === 'android') {
+if (Platform.OS === "android") {
   try {
     const u = new URL(NEXT_BASE_URL);
-    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
-      u.hostname = '10.0.2.2';
-      NEXT_BASE_URL = u.toString().replace(/\/$/, '');
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+      u.hostname = "10.0.2.2";
+      NEXT_BASE_URL = u.toString().replace(/\/$/, "");
     }
   } catch {}
 }
 
 async function getToken() {
   try {
-    return await SecureStore.getItemAsync('authToken');
+    return await SecureStore.getItemAsync("authToken");
   } catch {
     return null;
   }
@@ -39,17 +41,18 @@ async function getToken() {
 
 export async function apiFetch(path, options = {}) {
   const token = await getToken();
-  const isFormData = (typeof FormData !== 'undefined') && options?.body instanceof FormData;
+  const isFormData =
+    typeof FormData !== "undefined" && options?.body instanceof FormData;
   const headers = {
-    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers || {}),
   };
-  if (token && !options.noAuth) headers['Authorization'] = `Bearer ${token}`;
+  if (token && !options.noAuth) headers["Authorization"] = `Bearer ${token}`;
   // Avoid ngrok browser warning page
   try {
     const host = new URL(NEXT_BASE_URL).hostname;
-    if (host && host.includes('ngrok')) {
-      headers['ngrok-skip-browser-warning'] = 'true';
+    if (host && host.includes("ngrok")) {
+      headers["ngrok-skip-browser-warning"] = "true";
     }
   } catch {}
 
@@ -60,20 +63,21 @@ export async function apiFetch(path, options = {}) {
   });
 
   if (res.status === 401) {
-    const err = new Error('Unauthorized');
+    const err = new Error("Unauthorized");
     err.status = 401;
     throw err;
   }
 
   // Prefer JSON, but gracefully handle text and attempt JSON parse
-  const contentType = res.headers.get('content-type') || '';
+  const contentType = res.headers.get("content-type") || "";
   const text = await res.text();
-  const looksJson = text && (text.trim().startsWith('{') || text.trim().startsWith('['));
-  if (contentType.includes('application/json') || looksJson) {
+  const looksJson =
+    text && (text.trim().startsWith("{") || text.trim().startsWith("["));
+  if (contentType.includes("application/json") || looksJson) {
     try {
       const data = JSON.parse(text);
       if (!res.ok) {
-        const err = new Error(data?.error || 'Request failed');
+        const err = new Error(data?.error || "Request failed");
         err.status = res.status;
         err.data = data;
         throw err;
@@ -81,14 +85,14 @@ export async function apiFetch(path, options = {}) {
       return data;
     } catch (e) {
       // If server claimed JSON but parse failed, throw
-      const err = new Error('Réponse non valide du serveur');
+      const err = new Error("Réponse non valide du serveur");
       err.status = res.status;
       err.data = { raw: text };
       throw err;
     }
   }
   if (!res.ok) {
-    const err = new Error(text || 'Request failed');
+    const err = new Error(text || "Request failed");
     err.status = res.status;
     throw err;
   }
@@ -96,15 +100,15 @@ export async function apiFetch(path, options = {}) {
 }
 
 export async function getMe() {
-  return apiFetch('/api/user/me');
+  return apiFetch("/api/user/me");
 }
 
 export async function getMyCards() {
-  const list = await apiFetch('/api/cartes?user=current');
+  const list = await apiFetch("/api/cartes?user=current");
   // Optional debug to verify counts
   try {
-    const dbg = await apiFetch('/api/debug-cards');
-    console.log('Debug counts', dbg.counts);
+    const dbg = await apiFetch("/api/debug-cards");
+    console.log("Debug counts", dbg.counts);
   } catch {}
   if (Array.isArray(list.cards) && list.cards.length > 0) return list;
   // Fallback: some accounts may still store cards embedded in user
@@ -119,10 +123,12 @@ export async function getMyCards() {
 
 export async function getBackgrounds() {
   // No auth to avoid CORS preflight issues on some devices/network stacks
-  const res = await fetch(`${NEXT_BASE_URL}/api/backgrounds`, { method: 'GET' });
+  const res = await fetch(`${NEXT_BASE_URL}/api/backgrounds`, {
+    method: "GET",
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data?.error || 'Failed to load backgrounds');
+    const err = new Error(data?.error || "Failed to load backgrounds");
     err.status = res.status;
     throw err;
   }
@@ -130,7 +136,7 @@ export async function getBackgrounds() {
 }
 
 export async function getMyUploads() {
-  return apiFetch('/api/upload');
+  return apiFetch("/api/upload");
 }
 
 export async function uploadImageFile(file) {
@@ -139,16 +145,16 @@ export async function uploadImageFile(file) {
   // Correction: forcer le bon format d'objet pour FormData
   const fileToSend = {
     uri: file.uri,
-    name: file.fileName || file.name || 'photo.jpg',
-    type: file.type || 'image/jpeg',
+    name: file.fileName || file.name || "photo.jpg",
+    type: file.type || "image/jpeg",
   };
-  console.log('Uploading image', fileToSend);
+  console.log("Uploading image", fileToSend);
   const form = new FormData();
-  form.append('file', fileToSend);
+  form.append("file", fileToSend);
   // Ne jamais définir Content-Type pour FormData, fetch le fait automatiquement
   const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
   const res = await fetch(`${NEXT_BASE_URL}/api/upload?type=image`, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: form,
   });
@@ -159,7 +165,7 @@ export async function uploadImageFile(file) {
     data = {};
   }
   if (!res.ok) {
-    const err = new Error(data?.error || 'Upload failed');
+    const err = new Error(data?.error || "Upload failed");
     err.status = res.status;
     throw err;
   }
@@ -167,27 +173,27 @@ export async function uploadImageFile(file) {
 }
 
 export async function createCard(payload) {
-  return apiFetch('/api/cartes', {
-    method: 'POST',
+  return apiFetch("/api/cartes", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateCard(cardId, payload) {
   return apiFetch(`/api/cartes/${cardId}`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }
 
 export async function deleteCard(cardId) {
   return apiFetch(`/api/cartes/${cardId}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
 export async function getMyStats() {
-  const stats = await apiFetch('/api/stats');
+  const stats = await apiFetch("/api/stats");
   try {
     // If server reports 0 cards, double-check via list endpoint and synthesize counts
     const needCards = !stats?.cards || (stats.cards.total || 0) === 0;
@@ -198,14 +204,16 @@ export async function getMyStats() {
       const list = await getMyCards();
       const cards = Array.isArray(list?.cards) ? list.cards : [];
       if (cards.length > 0) {
-        const active = cards.filter(c => !!c.isActive).length;
+        const active = cards.filter((c) => !!c.isActive).length;
         const inactive = Math.max(0, cards.length - active);
         const views = cards.reduce((s, c) => s + (c?.stats?.views || 0), 0);
         const shares = cards.reduce((s, c) => s + (c?.stats?.shares || 0), 0);
         const scans = cards.reduce((s, c) => s + (c?.stats?.scans || 0), 0);
         return {
           ...stats,
-          cards: needCards ? { total: cards.length, active, inactive } : stats.cards,
+          cards: needCards
+            ? { total: cards.length, active, inactive }
+            : stats.cards,
           views: needViews ? { total: views } : stats.views,
           shares: needShares ? { total: shares } : stats.shares,
           scans: needScans ? { total: scans } : stats.scans,
